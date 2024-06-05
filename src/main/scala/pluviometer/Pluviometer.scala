@@ -24,7 +24,7 @@ object Pluviometer:
 
   private case class SendDataToZone() extends Command
 
-  private case class FindZone() extends Command
+  private case class FindZone(zoneCode: String) extends Command
 
 
   def apply(name: String, zoneCode: String): Behavior[Message] = Behaviors.setup { ctx =>
@@ -41,27 +41,14 @@ class Pluviometer(ctx: ActorContext[Message], name: String, zoneCode: String):
   private val updateFrequency = FiniteDuration(3, "second")
   var count = 0
 
-  private val start: Behavior[Message] =
+  private def start: Behavior[Message] =
     info("Entering start")
     Behaviors.withTimers { timers =>
-      timers.startTimerAtFixedRate(FindZone(), FiniteDuration(5000, "milli"))
+      timers.startTimerAtFixedRate(FindZone(zoneCode), FiniteDuration(5000, "milli"))
       info("Timer finding started")
       Behaviors.receiveMessagePartial {
-        case FindZone() =>
-          ctx.spawnAnonymous[Receptionist.Listing](
-            Behaviors.setup { ctx2 =>
-              val zoneServiceKey = ServiceKey[Message](zoneCode)
-              ctx2.system.receptionist ! Receptionist.Subscribe(zoneServiceKey, ctx2.self)
-              Behaviors.receiveMessagePartial[Receptionist.Listing] {
-                case zoneServiceKey.Listing(l) =>
-                  l.foreach(e =>
-                    ctx2.log.info(s"Element listing: $e")
-                    ctx.self ! ConnectTo(e)
-                  )
-                  Thread.sleep(2000)
-                  Behaviors.stopped
-              }
-            })
+        case FindZone(zone) =>
+          ctx.spawnAnonymous(connectToZone(zone))
           Behaviors.same
         case ConnectTo(replyTo) =>
           timers.cancelAll()
@@ -72,16 +59,26 @@ class Pluviometer(ctx: ActorContext[Message], name: String, zoneCode: String):
 
           info(s"Ref of new WORK Actor: $actRef")
           replyTo ! NewPluvConnected(name, actRef)
-          //          work(replyTo)
           Behaviors.empty
       }
     }
 
+  private def connectToZone(zoneCode: String) =
+      Behaviors.setup { ctx2 =>
+        val zoneServiceKey = ServiceKey[Message](zoneCode)
+        ctx2.system.receptionist ! Receptionist.Subscribe(zoneServiceKey, ctx2.self)
+        Behaviors.receiveMessagePartial {
+          case zoneServiceKey.Listing(l) =>
+            l.foreach(e =>
+              ctx2.log.info(s"Element listing: $e")
+              ctx.self ! ConnectTo(e)
+            )
+            Thread.sleep(2000)
+            Behaviors.stopped
+        }
+      }
+
   private def work(ref: ActorRef[Message]): Behavior[Message] =
-    //    println(s"work received context ${ctx}")
-    //    println(s"work received context.self: ${ctx.self}")
-    //    println(s"work received context.self.path: ${ctx.self.path}")
-    //    info(s"Entering in work with contextref ${ctx.self}")
     Behaviors.setup { workActorCtx =>
       workActorCtx.log.info(s"Inside work setup with ref: ${workActorCtx.self} ")
       Behaviors.withTimers { timers =>
@@ -104,11 +101,6 @@ class Pluviometer(ctx: ActorContext[Message], name: String, zoneCode: String):
     }
 
   private def alarm(ctx: ActorContext[Message], ref: ActorRef[Message]): Behavior[Message] =
-    //    ctx.log.info("Entering Alarm")
-    //    Behaviors.receive { (context, message) =>
-    //      context.log.info(s"Received a message: $message")
-    //      context.log.info(s"I'm context: $context")
-    //      context.log.info(s"I'm context.self: ${context.self}")
     Behaviors.withTimers { timers =>
       timers.startTimerAtFixedRate(SendDataToZone(), updateFrequency)
       ctx.log.info("Timer alarm started")
@@ -118,9 +110,14 @@ class Pluviometer(ctx: ActorContext[Message], name: String, zoneCode: String):
         case _ => Behaviors.same
       }
     }
-  //    }
 
 
   private def info(msg: String) = this.ctx.log.info(msg)
+
+  private def printContextInfo(ctx: ActorContext[Message]) =
+    println(s"Received context $ctx")
+    println(s"Received context.self: ${ctx.self}")
+    println(s"Received context.self.path: ${ctx.self.path}")
+
 
 
