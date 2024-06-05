@@ -4,7 +4,7 @@ ThisBuild / scalaVersion := "3.1.3"
 val akkaVersion = "2.6.19"
 lazy val root = (project in file("."))
   .settings(
-    name := "akka-remote-basics",
+    name := "rain-emergency-manager",
     libraryDependencies ++= Seq(
       "com.typesafe.akka" %% "akka-actor-typed" % akkaVersion, // For standard log configuration
       "com.typesafe.akka" %% "akka-remote" % akkaVersion, // For akka remote
