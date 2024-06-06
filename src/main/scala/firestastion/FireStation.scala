@@ -22,12 +22,12 @@ private case class FireStation(ctx: ActorContext[Message], name: String, fireSta
   import FireStation.WatchZone
   import FireStation.Managing
   import FireStation.Solved
-  var zoneWatching: ActorRef[Message] = null
+  var zoneWatching: Option[ActorRef[Message]] = None
 
   private def free: Behavior[Message] =
     Behaviors.receiveMessagePartial {
       case WatchZone(zoneRef) =>
-        this.zoneWatching = zoneRef
+        this.zoneWatching = Option(zoneRef)
 //        zoneRef ! Zone.GetStatus()
         Behaviors.same
       case _ =>

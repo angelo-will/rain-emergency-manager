@@ -91,7 +91,8 @@ private case class Pluviometer(ctx: ActorContext[Message], name: String, zoneCod
               workActorCtx.log.info("Send Alarm")
               ref ! Zone.Alarm(workActorCtx.self)
               timers.cancelAll()
-              this.alarm(workActorCtx, ref)
+//              this.alarm(workActorCtx, ref)
+              this.alarm(ref)
             else
               workActorCtx.log.info("Send Something else")
               ref ! Zone.NoAlarm()
@@ -100,13 +101,14 @@ private case class Pluviometer(ctx: ActorContext[Message], name: String, zoneCod
       }
     }
 
-  private def alarm(ctx: ActorContext[Message], ref: ActorRef[Message]): Behavior[Message] =
+//  private def alarm(ctx: ActorContext[Message], ref: ActorRef[Message]): Behavior[Message] =
+  private def alarm(ref: ActorRef[Message]): Behavior[Message] =
     Behaviors.withTimers { timers =>
       timers.startTimerAtFixedRate(SendDataToZone(), updateFrequency)
-      ctx.log.info("Timer alarm started")
-      Behaviors.receiveMessagePartial {
-        case SendDataToZone() => ref ! Zone.Alarm(ctx.self); Behaviors.same
-        case UnsetAlarm(ref) => ctx.log.info("unsetting alarm...");timers.cancelAll(); work(ref)
+//      ctx.log.info("Timer alarm started")
+      Behaviors.receivePartial {
+        case (ctx,SendDataToZone()) => ref ! Zone.Alarm(ctx.self); Behaviors.same
+        case (ctx,UnsetAlarm(ref)) => ctx.log.info("unsetting alarm...");timers.cancelAll(); work(ref)
         case _ => Behaviors.same
       }
     }

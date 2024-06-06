@@ -41,9 +41,9 @@ private case class Zone(ctx: ActorContext[Message], name: String):
   private def working: Behavior[Message] =
     this.ctx.log.info("Entering working")
     var alarmCount = 0
-    Behaviors.receiveMessagePartial {
-      case Alarm(pluvRef) =>
-        this.ctx.log.info("RECEIVED ALARM")
+    Behaviors.receivePartial {
+      case (ctx, Alarm(pluvRef)) =>
+        ctx.log.info("RECEIVED ALARM")
         pluviometers(pluvRef) = true
         alarmCount = alarmCount + 1
         if alarmCount >= 3 then
@@ -51,12 +51,12 @@ private case class Zone(ctx: ActorContext[Message], name: String):
           alarmCount = 0
         printPluvState
         Behaviors.same
-      case NoAlarm() =>
-        this.ctx.log.info("RECEIVED NO ALARM")
+      case (ctx, NoAlarm()) =>
+        ctx.log.info("RECEIVED NO ALARM")
         printPluvState
         Behaviors.same
-      case NewPluvConnected(name, replyTo) =>
-        this.ctx.log.info(s"New pluv connected with name $name")
+      case (ctx, NewPluvConnected(name, replyTo)) =>
+        ctx.log.info(s"New pluv connected with name $name")
         pluviometers.put(replyTo, false)
         Behaviors.same
     }
