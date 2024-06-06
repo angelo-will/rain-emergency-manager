@@ -6,13 +6,13 @@ import akka.actor.typed.{ActorRef, Behavior}
 import message.Message
 import zone.Zone.Command
 
-import scala.collection.mutable.Set
+import scala.collection.mutable.Map
 
 
 object Zone:
   sealed trait Command extends Message
 
-  case class Alarm() extends Command
+  case class Alarm(pluvRef: ActorRef[Message]) extends Command
 
   case class NewPluvConnected(name: String, replyTo: ActorRef[Message]) extends Command
 
@@ -29,36 +29,44 @@ class Zone(ctx: ActorContext[Message], name: String):
 
   import Zone.*
   import pluviometer.Pluviometer.UnsetAlarm
+  import firestastion.FireStation.DeactivateAlarm
+  import scala.collection.mutable.Set
 
-  val pluviometers: scala.collection.mutable.Set[ActorRef[Message]] = Set()
+  private val pluviometers: Map[ActorRef[Message], Boolean] = Map()
 
-  private val creating: Behavior[Message] =
+  private def creating: Behavior[Message] =
     this.ctx.log.info("Entering creating")
     this.working
-  //    Behaviors.receiveMessagePartial {
-  //      case Alarm() => this.working
-  //    }
 
-  private lazy val working: Behavior[Message] =
+  private def working: Behavior[Message] =
     this.ctx.log.info("Entering working")
     var alarmCount = 0
     Behaviors.receiveMessagePartial {
-      case Alarm() =>
+      case Alarm(pluvRef) =>
         this.ctx.log.info("RECEIVED ALARM")
+        pluviometers(pluvRef) = true
         alarmCount = alarmCount + 1
-        //        if alarmCount >= 3 then
-//        ctx.log.info("Sending unsetting alarm")
-        pluviometers.foreach(pluv =>
-          ctx.log.info(s"Sending unset alarm to $pluv")
-          pluv ! UnsetAlarm(ctx.self))
-        //          alarmCount = 0
+        if alarmCount >= 3 then
+          resetAlarm
+          alarmCount = 0
+        printPluvState
         Behaviors.same
       case NoAlarm() =>
         this.ctx.log.info("RECEIVED NO ALARM")
+        printPluvState
         Behaviors.same
       case NewPluvConnected(name, replyTo) =>
         this.ctx.log.info(s"New pluv connected with name $name")
-        pluviometers.add(replyTo)
+        pluviometers.put(replyTo, false)
         Behaviors.same
     }
 
+  private def resetAlarm =
+    this.ctx.log.info(s"Sending unsetting alarm")
+    for ((pluvRef, _) <- pluviometers)
+      pluvRef ! UnsetAlarm(ctx.self)
+      pluviometers(pluvRef) = false
+
+
+
+  private def printPluvState = this.ctx.log.info(s"pluviometers state: $pluviometers")

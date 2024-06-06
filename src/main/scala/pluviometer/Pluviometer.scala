@@ -89,7 +89,7 @@ class Pluviometer(ctx: ActorContext[Message], name: String, zoneCode: String):
             workActorCtx.log.info("SendDataToZone received")
             if (new Random).nextBoolean() then
               workActorCtx.log.info("Send Alarm")
-              ref ! Zone.Alarm()
+              ref ! Zone.Alarm(workActorCtx.self)
               timers.cancelAll()
               this.alarm(workActorCtx, ref)
             else
@@ -105,8 +105,8 @@ class Pluviometer(ctx: ActorContext[Message], name: String, zoneCode: String):
       timers.startTimerAtFixedRate(SendDataToZone(), updateFrequency)
       ctx.log.info("Timer alarm started")
       Behaviors.receiveMessagePartial {
-        case SendDataToZone() => ref ! Zone.Alarm(); Behaviors.same
-        case UnsetAlarm(ref) => timers.cancelAll(); work(ref)
+        case SendDataToZone() => ref ! Zone.Alarm(ctx.self); Behaviors.same
+        case UnsetAlarm(ref) => ctx.log.info("unsetting alarm...");timers.cancelAll(); work(ref)
         case _ => Behaviors.same
       }
     }
