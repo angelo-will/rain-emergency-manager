@@ -32,7 +32,7 @@ object Pluviometer:
     new Pluviometer(ctx, name, zoneCode).start
   }
 
-case class Pluviometer(ctx: ActorContext[Message], name: String, zoneCode: String):
+private case class Pluviometer(ctx: ActorContext[Message], name: String, zoneCode: String):
 
   import Pluviometer.*
   import zone.*

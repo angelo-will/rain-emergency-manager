@@ -25,7 +25,7 @@ object Zone:
     new Zone(ctx, name).creating
   }
 
-case class Zone(ctx: ActorContext[Message], name: String):
+private case class Zone(ctx: ActorContext[Message], name: String):
 
   import Zone.*
   import pluviometer.Pluviometer.UnsetAlarm
