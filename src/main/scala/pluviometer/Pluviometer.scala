@@ -36,7 +36,7 @@ private case class Pluviometer(ctx: ActorContext[Message], name: String, zoneCod
 
   import Pluviometer.*
   import zone.*
-  import Zone.NewPluvConnected
+  import Zone.PluviometerRegistered
 
   private val updateFrequency = FiniteDuration(3, "second")
   var count = 0
@@ -58,7 +58,7 @@ private case class Pluviometer(ctx: ActorContext[Message], name: String, zoneCod
           val actRef = ctx.spawn(work(replyTo), "WORK")
 
           info(s"Ref of new WORK Actor: $actRef")
-          replyTo ! NewPluvConnected(name, actRef)
+          replyTo ! PluviometerRegistered(name, actRef)
           Behaviors.empty
       }
     }

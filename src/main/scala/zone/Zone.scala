@@ -14,9 +14,7 @@ object Zone:
 
   case class Alarm(pluvRef: ActorRef[Message]) extends Command
 
-  case class NewPluvConnected(name: String, replyTo: ActorRef[Message]) extends Command
-
-  case class SendData() extends Command
+  case class PluviometerRegistered(name: String, replyTo: ActorRef[Message]) extends Command
 
   case class NoAlarm() extends Command
 
@@ -55,7 +53,7 @@ private case class Zone(ctx: ActorContext[Message], name: String):
         ctx.log.info("RECEIVED NO ALARM")
         printPluvState
         Behaviors.same
-      case (ctx, NewPluvConnected(name, replyTo)) =>
+      case (ctx, PluviometerRegistered(name, replyTo)) =>
         ctx.log.info(s"New pluv connected with name $name")
         pluviometers.put(replyTo, false)
         Behaviors.same
