@@ -9,7 +9,6 @@ object FireStation:
   sealed trait Command extends Message
 
   case class WatchZone(zoneRef: ActorRef[Message]) extends Command
-  case class DeactivateAlarm() extends Command
   case class Managing() extends Command
   case class Solved() extends Command
 
