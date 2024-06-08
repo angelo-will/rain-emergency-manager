@@ -7,7 +7,7 @@ import zone.Zone
 
 object ZoneDeploy:
   //  def apply(zoneServiceKey: ServiceKey[Zone.Command]): Behavior[Unit] =
-  def apply(zoneCode: String, zoneName: String): Behavior[Unit] =
+  def apply(zoneCode: String, zoneName: String): Behavior[Message] =
     val zoneServiceKey = ServiceKey[Message](zoneCode)
     Behaviors.setup { ctx =>
       val actorRef = ctx.spawn(Zone(zoneName), zoneServiceKey.id)
@@ -21,33 +21,11 @@ object PluviometerDeploy:
 
   import pluviometer.Pluviometer
 
-  //  def apply(zoneServiceKey: ServiceKey[Zone.Command]): Behavior[Unit] =
   def apply(zoneCode: String, pluviometerName: String): Behavior[Message] =
     Behaviors.setup { ctx =>
       // Eventualmente si può provare a far autodeterminare il pluviometro a quale zona collegarsi
       val actorRef = ctx.spawn(Pluviometer(pluviometerName, zoneCode), s"actor-$pluviometerName")
       Behaviors.empty
-      
-      //      ctx.spawnAnonymous[Receptionist.Listing](
-      //        Behaviors.setup { ctx2 =>
-      //          ctx2.system.receptionist ! Receptionist.Subscribe(zoneServiceKey, ctx2.self)
-      //          Behaviors.receiveMessagePartial[Receptionist.Listing]{
-      //            case zoneServiceKey.Listing(l) =>
-      //              l.foreach(e =>
-      //                ctx2.log.info(s"Element listing: $e")
-      //                actorRef ! ConnectTo(e)
-      //              )
-      //              Behaviors.same
-      //          }
-      //          Behaviors.same
-      //          Behaviors.receiveMessagePartial[Receptionist.Listing] {
-      ////            case zoneServiceKe
-      ////            case msg if msg.allServiceInstances(zoneServiceKey).nonEmpty =>
-      ////              // devo dire al pluviometer a chi manderà i dati registrati
-      ////              ???
-      //          }
-      //          Behaviors.empty
-      //        })
     }
 
 
