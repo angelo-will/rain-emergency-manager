@@ -28,13 +28,17 @@ object PluviometerDeploy:
       Behaviors.empty
     }
 
-
 @main def startZone01(): Unit =
   startup(port = 2551)(ZoneDeploy("zone-01", "zone-01"))
 //  startup(port = seeds.head)(ZoneDeploy("zone-01", "zone-01"))
 
-@main def startZone02(): Unit =
-  startup(port = seeds.last)(ZoneDeploy("zone-02", "zone-02"))
+//@main def startZone02(): Unit =
 
-@main def deploySensor(): Unit =
-  val master = startup(port = 8080)(PluviometerDeploy("zone-01", "esp32-001"))
+@main def deploySensor01(): Unit =
+  startup(port = 8080)(PluviometerDeploy("zone-01", "esp32-001"))
+
+@main def deploySensor02(): Unit =
+  startup(port = 8081)(PluviometerDeploy("zone-01", "esp32-002"))
+
+@main def deploySensor03(): Unit =
+  startup(port = 8082)(PluviometerDeploy("zone-01", "esp32-003"))
