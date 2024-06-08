@@ -101,13 +101,14 @@ private case class Pluviometer(ctx: ActorContext[Message], name: String, zoneCod
       }
     }
 
-//  private def alarm(ctx: ActorContext[Message], ref: ActorRef[Message]): Behavior[Message] =
   private def alarm(ref: ActorRef[Message]): Behavior[Message] =
     Behaviors.withTimers { timers =>
       timers.startTimerAtFixedRate(SendDataToZone(), updateFrequency)
-//      ctx.log.info("Timer alarm started")
       Behaviors.receivePartial {
-        case (ctx,SendDataToZone()) => ref ! Zone.Alarm(ctx.self); Behaviors.same
+        case (ctx,SendDataToZone()) =>
+          ctx.log.info("IN-ALARM sending alarm...")
+          ref ! Zone.Alarm(ctx.self)
+          Behaviors.same
         case (ctx,UnsetAlarm(ref)) => ctx.log.info("unsetting alarm...");timers.cancelAll(); work(ref)
         case _ => Behaviors.same
       }
