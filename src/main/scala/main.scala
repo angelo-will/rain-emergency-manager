@@ -5,15 +5,14 @@ import message.Message
 import utils.{seeds, startup}
 import zone.Zone
 
+import scala.concurrent.duration.{DAYS, FiniteDuration}
+import scala.util.Random
+
 object ZoneDeploy:
   //  def apply(zoneServiceKey: ServiceKey[Zone.Command]): Behavior[Unit] =
-  def apply(zoneCode: String, zoneName: String): Behavior[Message] =
-    val zoneServiceKey = ServiceKey[Message](zoneCode)
+  def apply(zoneCode: String, zoneName: String, row: Int, column: Int): Behavior[Message] =
     Behaviors.setup { ctx =>
-      val actorRef = ctx.spawn(Zone(zoneName), zoneServiceKey.id)
-      // ogni attore deve essere registrato al receptionist
-      ctx.system.receptionist ! Receptionist.Register(zoneServiceKey, actorRef)
-      ctx.log.info(s"${zoneServiceKey.id} register zone")
+      val actorRef = ctx.spawn(Zone(zoneName, zoneCode, row, column), zoneName)
       Behaviors.empty
     }
 
@@ -21,24 +20,161 @@ object PluviometerDeploy:
 
   import pluviometer.Pluviometer
 
-  def apply(zoneCode: String, pluviometerName: String): Behavior[Message] =
+  def apply(zoneCode: String, pluviometerName: String, coordX: Int, coordY: Int): Behavior[Message] =
     Behaviors.setup { ctx =>
       // Eventualmente si può provare a far autodeterminare il pluviometro a quale zona collegarsi
-      val actorRef = ctx.spawn(Pluviometer(pluviometerName, zoneCode), s"actor-$pluviometerName")
+      val actorRef = ctx.spawn(Pluviometer(pluviometerName, zoneCode, coordX, coordY), s"actor-$pluviometerName")
       Behaviors.empty
     }
 
-@main def startZone01(): Unit =
-  startup(port = 2551)(ZoneDeploy("zone-01", "zone-01"))
-//  startup(port = seeds.head)(ZoneDeploy("zone-01", "zone-01"))
+object FireStationDeploy:
 
-//@main def startZone02(): Unit =
+  import firestastion.FireStation
 
-@main def deploySensor01(): Unit =
-  startup(port = 8080)(PluviometerDeploy("zone-01", "esp32-001"))
+  def apply(zoneCode: String, fireStationName: String): Behavior[Message] = Behaviors.setup { ctx =>
+    ctx.spawn(FireStation(fireStationName, fireStationName, zoneCode), s"actor-$fireStationName")
+    Behaviors.empty
+  }
 
-@main def deploySensor02(): Unit =
-  startup(port = 8081)(PluviometerDeploy("zone-01", "esp32-002"))
+// Single start
 
-@main def deploySensor03(): Unit =
-  startup(port = 8082)(PluviometerDeploy("zone-01", "esp32-003"))
+@main def singleDeployZone01(): Unit =
+  startup(port = 2551)(ZoneDeploy("zone-01", "zone-01", 1, 1))
+
+@main def singleDeploySensor01(): Unit =
+  startup(port = 8080)(PluviometerDeploy("zone-01", "esp32-001", 1, 1))
+
+@main def singleDeploySensor02(): Unit =
+  startup(port = 8081)(PluviometerDeploy("zone-01", "esp32-002", 1, 2))
+
+@main def singleDeploySensor03(): Unit =
+  startup(port = 8082)(PluviometerDeploy("zone-01", "esp32-003", 1, 3))
+
+
+
+
+@main def testCode: Unit =
+  val city = Main.City(100, 200, 2, 2)
+  val pluvPerZone = 3
+  var index = 0
+
+
+  val zones = for
+    x <- 0 until city.rows
+    y <- 0 until city.columns
+  yield
+    println(s"creating zone-$x-$y with index")
+    index += 1
+    Main.Zone(s"zone-$x-$y", index, x, y, city.width / city.columns, city.height / city.rows)
+
+  for
+    zone <- zones
+  yield
+    println(s"startup(port = ${8080 + zone.index})(ZoneDeploy(${zone.zoneCode}, ${zone.zoneCode}, ${zone.row}, ${zone.column}))")
+
+  // Deploy pluvs
+  for
+    zone <- zones
+    pluv <- 1 to pluvPerZone
+  yield
+    val coordX = Random.between(zone.width * zone.column, zone.width * (zone.column + 1)).toInt
+    val coordY = Random.between(zone.height * zone.row, zone.height * (zone.row + 1)).toInt
+    //    startup(port = 8180 + pluv)(PluviometerDeploy(zone.zoneCode, s"pluv-$pluv-of-${zone.zoneCode}",coordX, coordY))
+    println(s"startup(port = ${8180 + (zone.index * 10) + pluv})(PluviometerDeploy(${zone.zoneCode}, pluv-$pluv-of-${zone.zoneCode},$coordX, $coordY))")
+
+  index = 0
+  for
+    zone <- zones
+  yield
+    index += 1
+    println(s"startup(port = ${9000 + index})(FireStationDeploy(${zone.zoneCode}, firestation-$index))")
+
+
+object Main extends App:
+
+  case class City(width: Double, height: Double, columns: Int, rows: Int)
+
+  case class Zone(zoneCode: String, index: Int, row: Int, column: Int, width: Double, height: Double)
+
+  val city = City(100, 200, 3, 2)
+  var index = 0
+
+  val zones = for
+    x <- 1 to city.rows
+    y <- 1 to city.columns
+  yield
+    println(s"creating zone-$x-$y with index")
+    index += 1
+    Zone(s"zone-$x-$y", index, x, y, city.width / city.columns, city.height / city.rows)
+
+  for
+    zone <- zones
+  yield
+    startup(port = 8080 + zone.index)(ZoneDeploy(zone.zoneCode, zone.zoneCode, zone.row, zone.column))
+
+
+  @main def startFireStation01(): Unit =
+    startup(port = 8090)(FireStationDeploy("zone-01", "firestation-01"))
+
+  @main def startZone01(): Unit =
+    startup(port = 2551)(ZoneDeploy("zone-01", "zone-01", 1, 1))
+  //  startup(port = seeds.head)(ZoneDeploy("zone-01", "zone-01"))
+
+  //@main def startZone02(): Unit =
+
+  @main def deploySensor01(): Unit =
+    startup(port = 8080)(PluviometerDeploy("zone-01", "esp32-001", 1, 1))
+
+  @main def deploySensor02(): Unit =
+    startup(port = 8081)(PluviometerDeploy("zone-01", "esp32-002", 1, 2))
+
+  @main def deploySensor03(): Unit =
+    startup(port = 8082)(PluviometerDeploy("zone-01", "esp32-003", 1, 3))
+
+import akka.actor.typed.pubsub.Topic
+import akka.actor.typed.pubsub.PubSub
+import akka.actor.typed.ActorRef
+
+object TestPub:
+  sealed trait Command extends Message
+
+  case class AAA() extends Command
+
+  case class BBB(b: String) extends Command
+
+  def apply() = Behaviors.setup { ctx =>
+    val pubSub = PubSub(ctx.system)
+
+    val topic: ActorRef[Topic.Command[Message]] = pubSub.topic[Message]("my-topic")
+
+    topic ! Topic.Subscribe(ctx.self)
+
+    Behaviors.withTimers { timers =>
+
+      timers.startTimerAtFixedRate(AAA(), FiniteDuration(5, "second"))
+
+      Behaviors.receivePartial {
+        case (ctx2, AAA()) =>
+          ctx2.log.info("Received AAA")
+          topic ! Topic.publish(BBB("bella raga"))
+          Behaviors.same
+        case (ctx2, BBB(s)) =>
+          ctx2.log.info(s"received BBB with $s")
+          Behaviors.same
+      }
+    }
+  }
+
+//object TestSub:
+//
+//  def apply() = Behaviors.setup { ctx =>
+//    val pubSub = PubSub(ctx.system)
+//    Topic.Subscribe()
+//
+//    val topic: ActorRef[Topic.Command[Message]] = pubSub.topic[Message]("my-topic")
+//    Behaviors.empty
+//  }
+
+@main def testPubSub(): Unit =
+  startup(port = 2551)(TestPub())
+//  startup(port = 8084)(TestSub())

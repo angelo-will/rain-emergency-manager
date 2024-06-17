@@ -14,69 +14,71 @@ import scala.util.Random
 object Pluviometer:
   sealed trait Command extends Message
 
-  case class GetStatus(ref: ActorRef[Message]) extends Command
-
-  case class SendWelcome(ref: ActorRef[Message]) extends Command
-
-  case class UnsetAlarm(ref: ActorRef[Message]) extends Command
+  private case class FindZone(zoneCode: String) extends Command
 
   private case class ConnectTo(ref: ActorRef[Message]) extends Command
 
   private case class SendDataToZone() extends Command
 
-  private case class FindZone(zoneCode: String) extends Command
+  private case class Start(zoneRef: ActorRef[Message]) extends Command
 
+  case class UnsetAlarm(ref: ActorRef[Message]) extends Command
 
-  def apply(name: String, zoneCode: String): Behavior[Message] = Behaviors.setup { ctx =>
-    ctx.log.info(s"Pluviometer $name created")
-    new Pluviometer(ctx, name, zoneCode).start
-  }
+  def apply(name: String, zoneCode: String, coordX: Int, coordY: Int): Behavior[Message] =
+    new Pluviometer(name, zoneCode, coordX, coordY).idle
 
-private case class Pluviometer(ctx: ActorContext[Message], name: String, zoneCode: String):
+private case class Pluviometer(name: String, zoneCode: String, coordX: Int, coordY: Int):
 
   import Pluviometer.*
   import zone.*
   import Zone.PluviometerRegistered
+  import Zone.PluviometerTryRegister
 
   private val updateFrequency = FiniteDuration(3, "second")
-  var count = 0
 
-  private def start: Behavior[Message] =
-    info("Entering start")
-    Behaviors.withTimers { timers =>
-      timers.startTimerAtFixedRate(FindZone(zoneCode), FiniteDuration(5000, "milli"))
-      info("Timer finding started")
-      Behaviors.receiveMessagePartial {
-        case FindZone(zone) =>
-          ctx.spawnAnonymous(connectToZone(zone))
-          Behaviors.same
-        case ConnectTo(replyTo) =>
-          timers.cancelAll()
-          info(s"I'm ${ctx.self}")
-          info("ConnectedTo msg receiver, starting worker actor")
+  private def idle: Behavior[Message] = Behaviors.setup { ctx =>
+    val workerActor = ctx.spawn(notPaired(), "WORK")
+    ctx.spawnAnonymous(connectToZone(zoneCode, ctx.self, workerActor))
+    Behaviors.receivePartial {
+      case (ctx, ConnectTo(zoneRef)) =>
+        val info = this.info(ctx)
+        info(s"I'm ${ctx.self}")
+        info("ConnectedTo msg receiver, starting worker actor")
+        workerActor ! Start(zoneRef)
+        Behaviors.empty
+    }
+  }
 
-          val actRef = ctx.spawn(work(replyTo), "WORK")
-
-          info(s"Ref of new WORK Actor: $actRef")
-          replyTo ! PluviometerRegistered(name, actRef)
-          Behaviors.empty
+  private def connectToZone(zoneCode: String, parentRef: ActorRef[Message], actorToRegister: ActorRef[Message]) =
+    Behaviors.setup { ctx =>
+      ctx.log.info("Start actor for search zone")
+      Behaviors.withTimers { timers =>
+        val zoneServiceKey = ServiceKey[Message](zoneCode)
+        timers.startTimerAtFixedRate(FindZone(zoneCode), FiniteDuration(5000, "milli"))
+        Behaviors.receiveMessagePartial {
+          case FindZone(zoneCode) =>
+            ctx.log.info(s"Timer tick, i'm trying to connect to zone $zoneCode")
+            ctx.system.receptionist ! Receptionist.Subscribe(zoneServiceKey, ctx.self)
+            Behaviors.same
+          //            Behaviors.receiveMessagePartial {
+          case zoneServiceKey.Listing(l) =>
+            l.head ! PluviometerTryRegister(actorToRegister, ctx.self)
+            Behaviors.same
+          case PluviometerRegistered(zoneRef) =>
+            parentRef ! ConnectTo(zoneRef)
+            Thread.sleep(2000)
+            Behaviors.stopped
+          //            }
+        }
       }
     }
 
-  private def connectToZone(zoneCode: String) =
-      Behaviors.setup { ctx2 =>
-        val zoneServiceKey = ServiceKey[Message](zoneCode)
-        ctx2.system.receptionist ! Receptionist.Subscribe(zoneServiceKey, ctx2.self)
-        Behaviors.receiveMessagePartial {
-          case zoneServiceKey.Listing(l) =>
-            l.foreach(e =>
-              ctx2.log.info(s"Element listing: $e")
-              ctx.self ! ConnectTo(e)
-            )
-            Thread.sleep(2000)
-            Behaviors.stopped
-        }
+  private def notPaired(): Behavior[Message] =
+    Behaviors.setup { ctx =>
+      Behaviors.receiveMessagePartial {
+        case Start(zoneRef) => work(zoneRef)
       }
+    }
 
   private def work(ref: ActorRef[Message]): Behavior[Message] =
     Behaviors.setup { workActorCtx =>
@@ -90,12 +92,10 @@ private case class Pluviometer(ctx: ActorContext[Message], name: String, zoneCod
             if (new Random).nextBoolean() then
               workActorCtx.log.info("Send Alarm")
               ref ! Zone.Alarm(workActorCtx.self)
-              timers.cancelAll()
-//              this.alarm(workActorCtx, ref)
-              this.alarm(ref)
+              Behaviors.same
             else
               workActorCtx.log.info("Send Something else")
-              ref ! Zone.NoAlarm()
+              ref ! Zone.NoAlarm(workActorCtx.self)
               Behaviors.same
         }
       }
@@ -105,17 +105,17 @@ private case class Pluviometer(ctx: ActorContext[Message], name: String, zoneCod
     Behaviors.withTimers { timers =>
       timers.startTimerAtFixedRate(SendDataToZone(), updateFrequency)
       Behaviors.receivePartial {
-        case (ctx,SendDataToZone()) =>
+        case (ctx, SendDataToZone()) =>
           ctx.log.info("IN-ALARM sending alarm...")
           ref ! Zone.Alarm(ctx.self)
           Behaviors.same
-        case (ctx,UnsetAlarm(ref)) => ctx.log.info("unsetting alarm...");timers.cancelAll(); work(ref)
+        case (ctx, UnsetAlarm(ref)) => ctx.log.info("unsetting alarm..."); timers.cancelAll(); work(ref)
         case _ => Behaviors.same
       }
     }
 
 
-  private def info(msg: String) = this.ctx.log.info(msg)
+  private def info(ctx: ActorContext[Message])(msg: String) = ctx.log.info(msg)
 
   private def printContextInfo(ctx: ActorContext[Message]) =
     println(s"Received context $ctx")
