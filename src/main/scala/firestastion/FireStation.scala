@@ -29,8 +29,10 @@ object FireStation:
     case Busy
 
   case class MessageToActorView(
+                                 fireStationId: String,
                                  zoneState: ZoneState,
-                                 fireStationState: FireStationState
+                                 fireStationState: FireStationState,
+                                 refForReply: ActorRef[Message]
                                ) extends Command
 
 
@@ -81,18 +83,19 @@ private case class FireStation(name: String, fireStationCode: String, zoneCode: 
       Behaviors.withTimers { timers =>
         timers.startTimerAtFixedRate(SendGetStatus(zoneRef), FiniteDuration(5, "s"))
         Behaviors.receiveMessagePartial {
-          case SendGetStatus(zoneRef) => 
+          case SendGetStatus(zoneRef) =>
             zoneRef ! Zone.GetStatus(parentActor)
             Behaviors.same
-//          case ZoneInfo(zoneState, pluvQuantity) =>
-//            parentActor ! ZoneInfo(zoneState, pluvQuantity)
-//            Behaviors.same
+          //          case ZoneInfo(zoneState, pluvQuantity) =>
+          //            parentActor ! ZoneInfo(zoneState, pluvQuantity)
+          //            Behaviors.same
         }
       }
     }
 
   private def handlerZoneStatus(behavior: Behavior[Message]): PartialFunction[(ActorContext[Message], Message), Behavior[Message]] =
     case (ctx, ZoneInfo(zoneState, pluvQuantity)) => ???
+
   private def connectToZone(zoneCode: String, replyTo: ActorRef[Message]) =
     Behaviors.setup { ctx2 =>
       val zoneServiceKey = ServiceKey[Message](zoneCode)
