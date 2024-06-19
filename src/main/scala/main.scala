@@ -3,54 +3,44 @@ import akka.actor.typed.receptionist.{Receptionist, ServiceKey}
 import akka.actor.typed.scaladsl.Behaviors
 import message.Message
 import utils.{seeds, startup}
+import pluviometer.Pluviometer
+import firestastion.FireStation
 import zone.Zone
 
 import scala.concurrent.duration.{DAYS, FiniteDuration}
 import scala.util.Random
 
-object ZoneDeploy:
-  //  def apply(zoneServiceKey: ServiceKey[Zone.Command]): Behavior[Unit] =
-  def apply(zoneCode: String, zoneName: String, row: Int, column: Int): Behavior[Message] =
-    Behaviors.setup { ctx =>
-      val actorRef = ctx.spawn(Zone(zoneName, zoneCode, row, column), zoneName)
-      Behaviors.empty
-    }
+object Deploy:
+  def zone(zoneCode: String, zoneName: String, row: Int, column: Int): Behavior[Message] =
+    deploy(Zone(zoneName, zoneCode, row, column), zoneName)
 
-object PluviometerDeploy:
+  def pluviometer(zoneCode: String, pluviometerName: String, coordX: Int, coordY: Int): Behavior[Message] =
+    deploy(Pluviometer(pluviometerName, zoneCode, coordX, coordY), s"actor-$pluviometerName")
 
-  import pluviometer.Pluviometer
+  def fireStation(zoneCode: String, fireStationName: String): Behavior[Message] =
+    deploy(FireStation(fireStationName, fireStationName, zoneCode), s"actor-$fireStationName")
 
-  def apply(zoneCode: String, pluviometerName: String, coordX: Int, coordY: Int): Behavior[Message] =
-    Behaviors.setup { ctx =>
-      // Eventualmente si può provare a far autodeterminare il pluviometro a quale zona collegarsi
-      val actorRef = ctx.spawn(Pluviometer(pluviometerName, zoneCode, coordX, coordY), s"actor-$pluviometerName")
-      Behaviors.empty
-    }
-
-object FireStationDeploy:
-
-  import firestastion.FireStation
-
-  def apply(zoneCode: String, fireStationName: String): Behavior[Message] = Behaviors.setup { ctx =>
-    ctx.spawn(FireStation(fireStationName, fireStationName, zoneCode), s"actor-$fireStationName")
+  private def deploy(behavior: Behavior[Message], actorName: String): Behavior[Message] = Behaviors.setup { ctx =>
+    ctx.spawn(behavior, actorName)
     Behaviors.empty
   }
 
 // Single start
 
 @main def singleDeployZone01(): Unit =
-  startup(port = 2551)(ZoneDeploy("zone-01", "zone-01", 1, 1))
+  startup(port = 2551)(Deploy.zone("zone-01", "zone-01", 1, 1))
+
+@main def singleDeployFireStation01(): Unit =
+  startup(port = 8090)(Deploy.fireStation("zone-01", "firestation-01"))
 
 @main def singleDeploySensor01(): Unit =
-  startup(port = 8080)(PluviometerDeploy("zone-01", "esp32-001", 1, 1))
+  startup(port = 8080)(Deploy.pluviometer("zone-01", "esp32-001", 1, 1))
 
 @main def singleDeploySensor02(): Unit =
-  startup(port = 8081)(PluviometerDeploy("zone-01", "esp32-002", 1, 2))
+  startup(port = 8081)(Deploy.pluviometer("zone-01", "esp32-002", 1, 2))
 
 @main def singleDeploySensor03(): Unit =
-  startup(port = 8082)(PluviometerDeploy("zone-01", "esp32-003", 1, 3))
-
-
+  startup(port = 8082)(Deploy.pluviometer("zone-01", "esp32-003", 1, 3))
 
 
 @main def testCode: Unit =
@@ -110,26 +100,26 @@ object Main extends App:
   for
     zone <- zones
   yield
-    startup(port = 8080 + zone.index)(ZoneDeploy(zone.zoneCode, zone.zoneCode, zone.row, zone.column))
+    startup(port = 8080 + zone.index)(Deploy.zone(zone.zoneCode, zone.zoneCode, zone.row, zone.column))
 
 
   @main def startFireStation01(): Unit =
-    startup(port = 8090)(FireStationDeploy("zone-01", "firestation-01"))
+    startup(port = 8090)(Deploy.fireStation("zone-01", "firestation-01"))
 
   @main def startZone01(): Unit =
-    startup(port = 2551)(ZoneDeploy("zone-01", "zone-01", 1, 1))
+    startup(port = 2551)(Deploy.zone("zone-01", "zone-01", 1, 1))
   //  startup(port = seeds.head)(ZoneDeploy("zone-01", "zone-01"))
 
   //@main def startZone02(): Unit =
 
   @main def deploySensor01(): Unit =
-    startup(port = 8080)(PluviometerDeploy("zone-01", "esp32-001", 1, 1))
+    startup(port = 8080)(Deploy.pluviometer("zone-01", "esp32-001", 1, 1))
 
   @main def deploySensor02(): Unit =
-    startup(port = 8081)(PluviometerDeploy("zone-01", "esp32-002", 1, 2))
+    startup(port = 8081)(Deploy.pluviometer("zone-01", "esp32-002", 1, 2))
 
   @main def deploySensor03(): Unit =
-    startup(port = 8082)(PluviometerDeploy("zone-01", "esp32-003", 1, 3))
+    startup(port = 8082)(Deploy.pluviometer("zone-01", "esp32-003", 1, 3))
 
 import akka.actor.typed.pubsub.Topic
 import akka.actor.typed.pubsub.PubSub
