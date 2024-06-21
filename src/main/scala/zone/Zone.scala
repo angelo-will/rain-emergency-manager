@@ -8,14 +8,12 @@ import akka.cluster.typed.{Cluster, Subscribe}
 import message.Message
 import zone.Zone.{Command, MemberExitedAdapter}
 
-import scala.collection.mutable.Map
 import scala.concurrent.duration.FiniteDuration
 
 
 object Zone:
   sealed trait Command extends Message
   case class PluviometerTryRegister(actorToRegister: ActorRef[Message], replyTo: ActorRef[Message]) extends Command
-  case class PluviometerRegistered(zoneRef: ActorRef[Message]) extends Command
 //  case class PluviometerRegistered(name: String, replyTo: ActorRef[Message]) extends Command
 
   /////
@@ -27,9 +25,20 @@ object Zone:
   case class NoAlarm(pluvRef: ActorRef[Message]) extends Command
 
   ///// Messages from firestation
+
+  case class RegisterFireStation(fSRef: ActorRef[Message], replyTo: ActorRef[Message]) extends Command
   case class UnderManagement() extends Command
 
   case class Solved() extends Command
+
+  //////
+
+  /**
+   * Give an ack to notify that element who has requested is connected.
+   *
+   * @param zoneRef ref to prime actor of zone
+   */
+  case class ElementConnectedAck(zoneRef: ActorRef[Message]) extends Command
 
   //////
   case class MemberExitedAdapter(event: MemberExited) extends Command
@@ -65,10 +74,11 @@ private case class Zone(name: String, zoneCode: String, row: Int, column: Int):
 
   import Zone.*
   import pluviometer.Pluviometer.UnsetAlarm
-  import scala.collection.mutable.Set
+  import scala.collection.mutable
   import akka.actor.typed.receptionist.Receptionist
 
-  private val pluviometers: Map[ActorRef[Message], Boolean] = Map()
+  private val pluviometers: mutable.Map[ActorRef[Message], Boolean] = mutable.Map()
+  private val fireStations: mutable.Set[ActorRef[Message]] = mutable.Set()
   private val maxPluviometersConnected = 2
 
   private def creating: Behavior[Message] = Behaviors.setup { ctx =>
@@ -91,7 +101,7 @@ private case class Zone(name: String, zoneCode: String, row: Int, column: Int):
               // fireS ! ZoneInfo(ZoneState.Alarm, pluviometers.size)
               inAlarm
 //            else
-              
+
             Behaviors.same
           case (ctx, NoAlarm(pluvRef)) =>
             ctx.log.info(s"RECEIVED NO ALARM from ${pluvRef.path.address}")
@@ -150,23 +160,23 @@ private case class Zone(name: String, zoneCode: String, row: Int, column: Int):
       //fireStationRef ! zoneInfo(zoneState, pluviometers.size)
       Behaviors.same
 
-  private def pluvRegistered(behavior: Behavior[Message]): PartialFunction[(ActorContext[Message], Message), Behavior[Message]] =
-//    case (ctx, PluviometerRegistered(name, replyTo)) =>
-//      ctx.log.info(s"New pluv connected with name $name")
-//      ctx.log.info(s"New pluv connected with ${replyTo.path.address}")
-//      pluviometers.put(replyTo, false)
-    case _ => behavior
-
   private def pluvTryRegister(behavior: Behavior[Message]): PartialFunction[(ActorContext[Message], Message), Behavior[Message]] =
     case (ctx, PluviometerTryRegister(actorToRegister, replyTo)) =>
       if pluviometers.size < maxPluviometersConnected then
         ctx.log.info(s"New pluv connected with name $name")
         ctx.log.info(s"New pluv connected with ${replyTo.path.address}")
         pluviometers.put(actorToRegister, false)
-        replyTo ! PluviometerRegistered(ctx.self)
-      else 
+        replyTo ! ElementConnectedAck(ctx.self)
+      else
         ctx.log.info(s"Ricevuto messaggio di registrazione ma ci sono sià $maxPluviometersConnected registrati")
       behavior
+
+  private def fireStationRegister(behavior: Behavior[Message]): PartialFunction[(ActorContext[Message], Message), Behavior[Message]] =
+    case (ctx, RegisterFireStation(fsRef, replyTo)) =>
+      fireStations += fsRef
+      replyTo ! ElementConnectedAck(ctx.self)
+      
+    behavior
 
   private def memberExited(behavior: Behavior[Message]): PartialFunction[(ActorContext[Message], Message), Behavior[Message]] =
     case (ctx, MemberExitedAdapter(event)) =>
@@ -182,6 +192,7 @@ private case class Zone(name: String, zoneCode: String, row: Int, column: Int):
 
   private def handlers(behavior: Behavior[Message]): PartialFunction[(ActorContext[Message], Message), Behavior[Message]] =
     pluvTryRegister(behavior)
+      .orElse(fireStationRegister(behavior))
       .orElse(memberExited(behavior))
 
   private def resetAlarm(ctx: ActorContext[Message]) =

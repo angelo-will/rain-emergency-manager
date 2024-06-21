@@ -31,7 +31,7 @@ private case class Pluviometer(name: String, zoneCode: String, coordX: Int, coor
 
   import Pluviometer.*
   import zone.*
-  import Zone.PluviometerRegistered
+  import Zone.ElementConnectedAck
   import Zone.PluviometerTryRegister
 
   private val updateFrequency = FiniteDuration(3, "second")
@@ -64,7 +64,7 @@ private case class Pluviometer(name: String, zoneCode: String, coordX: Int, coor
           case zoneServiceKey.Listing(l) =>
             l.head ! PluviometerTryRegister(actorToRegister, ctx.self)
             Behaviors.same
-          case PluviometerRegistered(zoneRef) =>
+          case ElementConnectedAck(zoneRef) =>
             parentRef ! ConnectTo(zoneRef)
             Thread.sleep(2000)
             Behaviors.stopped

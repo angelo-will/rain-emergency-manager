@@ -9,6 +9,7 @@ object FireStationGUI:
     case Alarm
     case Managing
     case Ok
+    case NotConnected
 
   enum FireStationStateGUI:
     case Busy
@@ -16,7 +17,7 @@ object FireStationGUI:
 
   def apply(fsList: Seq[String]) = new FireStationGUI(fsList)
 
-case class FireStationStateComponent() extends BoxPanel(Orientation.Vertical):
+case class FireStationStateComponent(fsCode: String) extends BoxPanel(Orientation.Vertical):
 
   import FireStationGUI.ZoneStateGUI
   import FireStationGUI.FireStationStateGUI
@@ -24,19 +25,28 @@ case class FireStationStateComponent() extends BoxPanel(Orientation.Vertical):
   private val sensors = new Label("0")
   private val zoneState = new Label("In allarme")
   private val fireStationState = new Label("Libera")
+  private val button = new Button("Intervieni")
+  private val zoneControlledCode = new Label("non connessa")
 
-  contents += new Label("Sensori in allarme:")
+  contents += new Label(s"CASERMA $fsCode")
+  contents += new Label("Zona controllata:")
+  contents += zoneControlledCode
+  contents += new Label("Sensori:")
   contents += sensors
   contents += new Label("Stato zona")
   contents += zoneState
   contents += new Label("Stato caserma")
   contents += fireStationState
-  contents += Button("Bottone") {
-    println("Hai premuto il bottone!")
-    // Modifica le etichette qui
-    sensors.text = "3"
-    zoneState.text = "In gestione"
-    fireStationState.text = "Occupata"
+  contents += button
+
+  def buttonAction = new Action("Button Action") {
+    def apply(): Unit = {
+      println("Hai premuto il bottone!")
+      // Modifica le etichette qui
+      sensors.text = "3"
+      zoneState.text = "In gestione"
+      fireStationState.text = "Occupata"
+    }
   }
 
   def setZoneState(zoneState: ZoneStateGUI): Unit =
@@ -44,13 +54,14 @@ case class FireStationStateComponent() extends BoxPanel(Orientation.Vertical):
       case ZoneStateGUI.Alarm => setZoneState("In allarme")
       case ZoneStateGUI.Managing => setZoneState("In gestione")
       case ZoneStateGUI.Ok => setZoneState("Sicura")
+      case ZoneStateGUI.NotConnected => setZoneState("Non connessa")
 
   def setFState(fireStationState: FireStationStateGUI): Unit =
     fireStationState match
       case FireStationStateGUI.Free => setFireStationState("Libera")
       case FireStationStateGUI.Busy => setFireStationState("Occupata")
-      
-  def setPluvQuantity(quantity: Int): Unit = sensors.text = ""+quantity
+
+  def setPluvQuantity(quantity: Int): Unit = sensors.text = "" + quantity
 
   private def setZoneState(state: String): Unit = zoneState.text = state
 
@@ -71,33 +82,33 @@ case class FireStationGUI(fireStationsCodes: Seq[String]) extends SimpleSwingApp
     contents += new Label("Stato delle caserma")
     for fs <- fireStationsCodes do
       println("Add new FS panel")
-      val fireS = FireStationStateComponent()
+      val fireS = FireStationStateComponent(fs)
       fireStations(s"firestation-$index") = fireS
       contents += fireS
     this.revalidate()
     this.repaint()
   }
-  
+
   def setFSZState(fSCode: String, zoneStateGUI: ZoneStateGUI): Unit =
     fireStations(fSCode).setZoneState(zoneStateGUI)
-  
+
   def setFSState(fSCode: String, fireStationStateGUI: FireStationStateGUI): Unit =
     fireStations(fSCode).setFState(fireStationStateGUI)
-    
+
   def setPluvZoneQuantity(fSCode: String, quantity: Int): Unit =
-    fireStations(fSCode).setPluvQuantity(quantity)  
-  
+    fireStations(fSCode).setPluvQuantity(quantity)
+
   var index = 0
 
   def top: Frame = new MainFrame {
     title = "Visualizzazione zona e caserma"
     contents = mainPanel
-//    size = new Dimension(300, 200)
+    //    size = new Dimension(300, 200)
   }
 
 }
 
 @main def aaa() =
-  FireStationGUI(Seq("fs-01","fs-02")).main(Array())
+  FireStationGUI(Seq("fs-01", "fs-02")).main(Array())
 
 
