@@ -14,7 +14,7 @@ import scala.concurrent.duration.FiniteDuration
 object Zone:
   sealed trait Command extends Message
   case class PluviometerTryRegister(actorToRegister: ActorRef[Message], replyTo: ActorRef[Message]) extends Command
-//  case class PluviometerRegistered(name: String, replyTo: ActorRef[Message]) extends Command
+  //  case class PluviometerRegistered(name: String, replyTo: ActorRef[Message]) extends Command
 
   /////
   case class GetStatus(fireSRef: ActorRef[Message]) extends Command
@@ -100,7 +100,7 @@ private case class Zone(name: String, zoneCode: String, row: Int, column: Int):
             if this.isZoneInAlarm then
               // fireS ! ZoneInfo(ZoneState.Alarm, pluviometers.size)
               inAlarm
-//            else
+            //            else
 
             Behaviors.same
           case (ctx, NoAlarm(pluvRef)) =>
@@ -173,9 +173,9 @@ private case class Zone(name: String, zoneCode: String, row: Int, column: Int):
 
   private def fireStationRegister(behavior: Behavior[Message]): PartialFunction[(ActorContext[Message], Message), Behavior[Message]] =
     case (ctx, RegisterFireStation(fsRef, replyTo)) =>
-      fireStations += fsRef
-      replyTo ! ElementConnectedAck(ctx.self)
-      
+    fireStations += fsRef
+    replyTo ! ElementConnectedAck(ctx.self)
+
     behavior
 
   private def memberExited(behavior: Behavior[Message]): PartialFunction[(ActorContext[Message], Message), Behavior[Message]] =

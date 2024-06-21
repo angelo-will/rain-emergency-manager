@@ -5,32 +5,29 @@ import akka.actor.typed.receptionist.{Receptionist, ServiceKey}
 import akka.actor.typed.scaladsl.*
 import akka.actor.typed.scaladsl.adapter.*
 import akka.actor.typed.{ActorRef, Behavior}
-
 import message.Message
-
 import scala.concurrent.duration.{DurationInt, FiniteDuration}
 import scala.util.Random
 
-object PluviometerActor:
+object Pluviometer:
   sealed trait Command extends Message
 
   private case class FindZone(zoneCode: String) extends Command
 
+  private case class ConnectTo(ref: ActorRef[Message]) extends Command
+
   private case class SendDataToZone() extends Command
 
-//  private case class ConnectTo(ref: ActorRef[Message]) extends Command
+  private case class Start(zoneRef: ActorRef[Message]) extends Command
 
-//  private case class Start(zoneRef: ActorRef[Message]) extends Command
-
-  case class Alarm(zoneRef: ActorRef[Message]) extends Command
-  case class UnsetAlarm(zoneRef: ActorRef[Message]) extends Command
+  case class UnsetAlarm(ref: ActorRef[Message]) extends Command
 
   def apply(name: String, zoneCode: String, coordX: Int, coordY: Int): Behavior[Message] =
-    new PluviometerActor(name, zoneCode, coordX, coordY).findZone
+    new Pluviometer(name, zoneCode, coordX, coordY).idle
 
-private case class PluviometerActor(pluviometer: ):
+private case class Pluviometer(name: String, zoneCode: String, coordX: Int, coordY: Int):
 
-  import PluviometerActor.*
+  import Pluviometer.*
   import zone.*
   import Zone.ElementConnectedAck
   import Zone.PluviometerTryRegister
@@ -115,13 +112,9 @@ private case class PluviometerActor(pluviometer: ):
       }
     }
 
-
   private def info(ctx: ActorContext[Message])(msg: String) = ctx.log.info(msg)
 
   private def printContextInfo(ctx: ActorContext[Message]) =
     println(s"Received context $ctx")
     println(s"Received context.self: ${ctx.self}")
     println(s"Received context.self.path: ${ctx.self.path}")
-
-
-
