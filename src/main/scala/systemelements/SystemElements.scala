@@ -18,6 +18,6 @@ object SystemElements:
 
   case class Pluviometer(pluvCode: String, zoneCode: String, position: Position, pluvState: PluviometerState, waterLevel: Double)
 
-  case class Zone(zoneCode: String, zoneState: ZoneState, pluviometers: Seq[Pluviometer], width: Int, height: Int)
+  case class Zone(zoneCode: String, zoneState: ZoneState, pluviometers: Seq[Pluviometer], row:Int, col:Int, width: Int, height: Int)
 
   case class FireStation(fireStationCode: String, fireStationState: FireStationState, zone: Zone)

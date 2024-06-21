@@ -3,24 +3,26 @@ import akka.actor.typed.receptionist.{Receptionist, ServiceKey}
 import akka.actor.typed.scaladsl.Behaviors
 import message.Message
 import utils.{seeds, startup}
-import pluviometer.Pluviometer
+import pluviometer.PluviometerActor
 import firestastion.FireStation
-import zone.Zone
+import zone.ZoneActor
+import systemelements.SystemElements.*
+import systemelements.SystemElements.PluviometerState.NotAlarm
 
 import scala.concurrent.duration.{DAYS, FiniteDuration}
 import scala.util.Random
 
 object Deploy:
   def zone(zoneCode: String, zoneName: String, row: Int, column: Int): Behavior[Message] =
-    deploy(Zone(zoneName, zoneCode, row, column), zoneName)
+    deploy(ZoneActor(Zone(zoneCode,ZoneState.Ok, Seq(),row,column,100,100)), s"actor-$zoneCode")
 
   def pluviometer(zoneCode: String, pluviometerName: String, coordX: Int, coordY: Int): Behavior[Message] =
-    deploy(Pluviometer(pluviometerName, zoneCode, coordX, coordY), s"actor-$pluviometerName")
+    deploy(PluviometerActor( Pluviometer(pluviometerName, zoneCode, Position(coordX, coordY), NotAlarm, 0)), s"actor-$pluviometerName")
 
   def fireStation(zoneCode: String, fireStationName: String): Behavior[Message] =
     deploy(FireStation(fireStationName, fireStationName, zoneCode), s"actor-$fireStationName")
 
-  private def deploy(behavior: Behavior[Message], actorName: String): Behavior[Message] = Behaviors.setup { ctx =>
+  private def deploxy(behavior: Behavior[Message], actorName: String): Behavior[Message] = Behaviors.setup { ctx =>
     ctx.spawn(behavior, actorName)
     Behaviors.empty
   }
