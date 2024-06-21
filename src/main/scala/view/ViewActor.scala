@@ -29,8 +29,10 @@ case class ViewActor(fsCodes: Seq[String], gui: FireStationGUI):
   import akka.actor.typed.{ActorRef, Behavior}
 
   import scala.collection.mutable
-
-  import firestastion.FireStation.{FireStationState, MessageToActorView}
+  
+  import systemelements.SystemElements.FireStationState
+  
+  import firestastion.FireStationActor
 
   import view.FireStationGUI.{FireStationStateGUI, ZoneStateGUI}
 
@@ -47,9 +49,9 @@ case class ViewActor(fsCodes: Seq[String], gui: FireStationGUI):
     val topic: ActorRef[Topic.Command[Message]] = pubSub.topic[Message]("firestations-topic")
     topic ! Topic.subscribe(ctx.self)
     Behaviors.receiveMessagePartial {
-      case MessageToActorView(idFS, zoneState, fireStationState, refForReply) =>
-        updateFSState(idFS, fireStationState)
-        updateFSZState(idFS, zoneState)
+      case FireStationActor.FireStationStatus(fireStation) =>
+        updateFSState(fireStation.fireStationCode, fireStation.fireStationState)
+        updateFSZState(fireStation.fireStationCode, fireStation.zone.zoneState)
         Behaviors.same
     }
   }
@@ -63,13 +65,11 @@ case class ViewActor(fsCodes: Seq[String], gui: FireStationGUI):
     case FireStationState.Free => gui.setFSState(fsCode, FireStationStateGUI.Free)
     case FireStationState.Busy => gui.setFSState(fsCode, FireStationStateGUI.Busy)
 
-  def updateFSZState(str: String, state: Option[ZoneState]): Unit =
-    if state.isDefined then state.get match
+  def updateFSZState(str: String, zoneState: ZoneState): Unit =
+    zoneState match
       case ZoneState.Alarm => gui.setFSZState(str, ZoneStateGUI.Alarm)
       case ZoneState.InManaging => gui.setFSZState(str, ZoneStateGUI.Managing)
       case ZoneState.Ok => gui.setFSZState(str, ZoneStateGUI.Ok)
-    else
-      gui.setFSZState(str, ZoneStateGUI.NotConnected)
 
 
 @main def testActorGUI(): Unit =

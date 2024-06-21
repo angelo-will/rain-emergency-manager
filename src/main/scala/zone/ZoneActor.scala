@@ -6,6 +6,7 @@ import akka.actor.typed.{ActorRef, Behavior}
 import akka.cluster.ClusterEvent.MemberExited
 import akka.cluster.typed.{Cluster, Subscribe}
 import message.Message
+import pluviometer.PluviometerActor
 import zone.ZoneActor.{Command, MemberExitedAdapter}
 
 import scala.concurrent.duration.FiniteDuration
@@ -83,55 +84,30 @@ private case class ZoneActor(zone: Zone):
     Behaviors.receivePartial {
       pluvTryRegister(Behaviors.same)
         .orElse {
-          case _ => Behaviors.same
+          case (ctx, PluviometerStatus(pluv, pluvRef)) =>
+            pluviometers(pluv.pluvCode) = pluv
+            pluviometersRefs(pluvRef) = pluv.waterLevel >= maxWaterLevel
+            if isZoneInAlarm then pluvRef ! PluviometerActor.Alarm(ctx.self)
+              for ((pluvRef, _) <- pluviometersRefs)
+                pluviometersRefs(pluvRef) = true
+            inAlarm
         }
     }
-  //  private def working: Behavior[Message] =
-  //    Behaviors.receivePartial {
-  //      handlers(Behaviors.same)
-  //        .orElse(getStatus(Behaviors.same, ZoneState.Ok))
-  //        .orElse {
-  //          case (ctx, Alarm(pluvRef)) =>
-  //            ctx.log.info(s"RECEIVED ALARM from ${pluvRef.path.address}")
-  //            pluviometers(pluvRef) = true
-  //            printPluvState(ctx)
-  //            if this.isZoneInAlarm then
-  //              // fireS ! ZoneInfo(ZoneState.Alarm, pluviometers.size)
-  //              inAlarm
-  //            //            else
-  //
-  //            Behaviors.same
-  //          case (ctx, NoAlarm(pluvRef)) =>
-  //            ctx.log.info(s"RECEIVED NO ALARM from ${pluvRef.path.address}")
-  //            // fireS ! ZoneInfo(ZoneState.Ok, pluviometers.size)
-  //            pluviometers(pluvRef) = false
-  //            printPluvState(ctx)
-  //            Behaviors.same
-  //        }
-  //    }
 
 
   private def inAlarm: Behavior[Message] =
-    println("------------------------------------------------ AAAAAAAAAAAAAAAAA ZONE IN ALARM")
-    //    Behaviors.withTimers{timers =>
-    //      timers.startTimerAtFixedRate(SendInfo(),FiniteDuration(3, "second"))
-    //      Behaviors.receivePartial {
-    //          case (ctx,SendInfo()) =>
-    //            // fireStationRef ! zoneInfo(Zonestate.Alarm
-    //            ctx.log.info("AAAAA Zone return in working")
-    //            this.resetAlarm(ctx)
-    //            this.working
-    //      }
-    //    }
-    // COMMENTED FOR DEBUG
     Behaviors.receivePartial {
       pluvTryRegister(Behaviors.same)
 //        .orElse(getStatus(Behaviors.same, ZoneState.Alarm))
         //        .orElse(receivedUpdates(Behaviors.same, ZoneState.Alarm))
         .orElse {
-          case (ctx, UnderManagement()) =>
-            ctx.log.info("Received under management")
-            this.underManagement
+          case (ctx, PluviometerStatus(pluv, pluvRef)) =>
+            pluviometers(pluv.pluvCode) = pluv
+            pluviometersRefs(pluvRef) = pluv.waterLevel >= maxWaterLevel
+            if isZoneInAlarm then pluvRef ! PluviometerActor.Alarm(ctx.self)
+            for ((pluvRef, _) <- pluviometersRefs)
+              pluviometersRefs(pluvRef) = true
+            inAlarm
         }
     }
 
@@ -150,12 +126,11 @@ private case class ZoneActor(zone: Zone):
     
     
 
-  private def pluStatusUpdates(behavior: Behavior[Message], zoneState: ZoneState): PartialFunction[(ActorContext[Message], Message), Behavior[Message]] =
+  private def pluStatusUpdates(behavior: Behavior[Message]): PartialFunction[(ActorContext[Message], Message), Behavior[Message]] =
     case (ctx, PluviometerStatus(pluv, pluvRef)) =>
       pluviometers(pluv.pluvCode) = pluv
-      if pluv.waterLevel >= maxWaterLevel then pluviometersRefs(pluvRef) = true
-      
-      Behaviors.same
+      pluviometersRefs(pluvRef) = pluv.waterLevel >= maxWaterLevel
+      behavior
   //  private def receivedUpdates(behavior: Behavior[Message], zoneState: ZoneState): PartialFunction[(ActorContext[Message], Message), Behavior[Message]] =
   //    case (ctx, Alarm(pluvRef)) =>
   //      pluviometersRefs(pluvRef) = true

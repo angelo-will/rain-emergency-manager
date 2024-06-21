@@ -4,11 +4,12 @@ import akka.actor.typed.receptionist.{Receptionist, ServiceKey}
 import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
 import akka.actor.typed.{ActorRef, Behavior}
 import akka.cluster.pubsub.DistributedPubSubMediator.SubscribeAck
-import firestastion.FireStation.{AdapterMessageForConnection, FireStationState}
+import firestastion.FireStationActor.AdapterMessageForConnection
 import message.Message
-import systemelements.SystemElements.{Zone, ZoneState}
+import systemelements.SystemElements.{FireStation, FireStationState, Zone, ZoneState}
+import zone.ZoneActor
 
-object FireStation:
+object FireStationActor:
 
   sealed trait Command extends Message
 
@@ -25,29 +26,26 @@ object FireStation:
   case class SendGetStatus(zoneRef: ActorRef[Message]) extends Command
 
   //////
-  case class InformGui() extends Command
+  
+  case class FireStationStatus(fireStationStatus: FireStation) extends Command
 
-  enum FireStationState extends Command:
-    case Free
-    case Busy
-
-  case class MessageToActorView(
-                                 fireStationId: String,
-                                 zoneState: Option[ZoneState],
-                                 fireStationState: FireStationState,
-                                 refForReply: ActorRef[Message]
-                               ) extends Command
+//  case class MessageToActorView(
+//                                 fireStationId: String,
+//                                 zoneState: Option[ZoneState],
+//                                 fireStationState: FireStationState,
+//                                 refForReply: ActorRef[Message]
+//                               ) extends Command
 
   //adapter use for recover the zoneActor reference
   private case class AdapterMessageForConnection(listing: Receptionist.Listing) extends Command
 
 
-  def apply(name: String, fireStationCode: String, zoneCode: String) =
-    new FireStation(name, fireStationCode, zoneCode).starting()
+  def apply(name: String, fireStationCode: String, zoneCode: String): Behavior[Message] =
+    new FireStationActor(name, fireStationCode, zoneCode).starting()
 
-private case class FireStation(name: String, fireStationCode: String, zoneCode: String):
+private case class FireStationActor(name: String, fireStationCode: String, zoneCode: String):
   
-  import FireStation.{Managing, Solved, FindZone, ConnectedToZone, SendGetStatus, InformGui}
+  import FireStationActor.{Managing, Solved, FindZone, ConnectedToZone, SendGetStatus, FireStationStatus}
   import scala.concurrent.duration.FiniteDuration
   import utilsduringdebug.PrintInfo
   import akka.actor.typed.pubsub.Topic
@@ -57,7 +55,7 @@ private case class FireStation(name: String, fireStationCode: String, zoneCode: 
   private val updateGUIConnectedFrequency = FiniteDuration(5, "second")
   private val askZoneStatus = FiniteDuration(5, "second")
   private var lastZoneState: Option[ZoneState] = None
-  private var lastFireStationState: Option[FireStationState] = Some(FireStationState.Free)
+//  private var lastFireStationState: Option[FireStationState] = Some(FireStationState.Free)
 
   private var zoneRef: Option[ActorRef[Message]] = None
 
@@ -95,11 +93,13 @@ private case class FireStation(name: String, fireStationCode: String, zoneCode: 
       timers.startTimerAtFixedRate(SendGetStatus(zoneRef), askZoneStatus)
       Behaviors.receiveMessagePartial {
         case SendGetStatus(zoneRef) =>
-          zoneRef ! Get_zone_status(ctx.self)
+          zoneRef ! ZoneActor.GetZoneStatus(ctx.self)
           Behaviors.same
-        case ZoneStatus(zoneRef, zoneClass) =>
+        case ZoneActor.ZoneStatus(zoneClass, zoneRef) =>
           //send message to gui using pub/sub
-          topic ! Topic.publish(zoneClass)
+          topic ! Topic.publish(
+            FireStationStatus(FireStation(fireStationCode, FireStationState.Free, zoneClass))
+          )
           zoneClass.zoneState match
             case ZoneState.Alarm => inAlarm(zoneRef)
             case _ => Behaviors.same

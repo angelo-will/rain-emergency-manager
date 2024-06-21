@@ -4,7 +4,7 @@ import akka.actor.typed.scaladsl.Behaviors
 import message.Message
 import utils.{seeds, startup}
 import pluviometer.PluviometerActor
-import firestastion.FireStation
+import firestastion.FireStationActor
 import zone.ZoneActor
 import systemelements.SystemElements.*
 import systemelements.SystemElements.PluviometerState.NotAlarm
@@ -20,9 +20,9 @@ object Deploy:
     deploy(PluviometerActor( Pluviometer(pluviometerName, zoneCode, Position(coordX, coordY), NotAlarm, 0)), s"actor-$pluviometerName")
 
   def fireStation(zoneCode: String, fireStationName: String): Behavior[Message] =
-    deploy(FireStation(fireStationName, fireStationName, zoneCode), s"actor-$fireStationName")
+    deploy(FireStationActor(fireStationName, fireStationName, zoneCode), s"actor-$fireStationName")
 
-  private def deploxy(behavior: Behavior[Message], actorName: String): Behavior[Message] = Behaviors.setup { ctx =>
+  private def deploy(behavior: Behavior[Message], actorName: String): Behavior[Message] = Behaviors.setup { ctx =>
     ctx.spawn(behavior, actorName)
     Behaviors.empty
   }
@@ -123,6 +123,8 @@ object Main extends App:
   @main def deploySensor03(): Unit =
     startup(port = 8082)(Deploy.pluviometer("zone-01", "esp32-003", 1, 3))
 
+
+
 import akka.actor.typed.pubsub.Topic
 import akka.actor.typed.pubsub.PubSub
 import akka.actor.typed.ActorRef
@@ -134,7 +136,7 @@ object TestPub:
 
   case class BBB(b: String) extends Command
 
-  def apply() = Behaviors.setup { ctx =>
+  def apply(str: String) = Behaviors.setup { ctx =>
     val pubSub = PubSub(ctx.system)
 
     val topic: ActorRef[Topic.Command[Message]] = pubSub.topic[Message]("my-topic")
@@ -148,7 +150,7 @@ object TestPub:
       Behaviors.receivePartial {
         case (ctx2, AAA()) =>
           ctx2.log.info("Received AAA")
-          topic ! Topic.publish(BBB("bella raga"))
+          topic ! Topic.publish(BBB(s"bella raga invio $str"))
           Behaviors.same
         case (ctx2, BBB(s)) =>
           ctx2.log.info(s"received BBB with $s")
@@ -168,5 +170,8 @@ object TestPub:
 //  }
 
 @main def testPubSub(): Unit =
-  startup(port = 2551)(TestPub())
+  startup(port = 2551)(TestPub("1111"))
+
+@main def testPubSub2(): Unit =
+  startup(port = 2552)(TestPub("22222"))
 //  startup(port = 8084)(TestSub())
