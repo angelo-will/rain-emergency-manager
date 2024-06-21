@@ -1,15 +1,26 @@
 package view
 
 
+import akka.actor.typed.Behavior
+import akka.actor.typed.scaladsl.Behaviors
 import message.Message
+import systemelements.SystemElements.ZoneState
+
+import javax.swing.SwingUtilities
+import scala.concurrent.{ExecutionContext, Future}
+import scala.swing.Action
 
 object ViewActor:
   sealed trait Command extends Message
 
-  def apply(fsCodes: Seq[String]) =
+  def apply(fsCodes: Seq[String]): Unit =
     val gui = FireStationGUI(fsCodes)
-    gui.main(Array())
-    new ViewActor(fsCodes, gui).start()
+    for fs <- fsCodes do
+      gui.addButtonListener(ViewListenerActor(fs), fs)
+    val viewActor = new ViewActor(fsCodes, gui).start()
+    gui.main(Array.empty)
+
+
 
 case class ViewActor(fsCodes: Seq[String], gui: FireStationGUI):
 
@@ -20,18 +31,14 @@ case class ViewActor(fsCodes: Seq[String], gui: FireStationGUI):
   import scala.collection.mutable
 
   import firestastion.FireStation.{FireStationState, MessageToActorView}
-  import zone.Zone.ZoneState
 
-  import view.FireStationGUI
   import view.FireStationGUI.{FireStationStateGUI, ZoneStateGUI}
 
   val AAA = 0
   private val fireStations = mutable.Map[String, ActorRef[Message]]()
 
   def start(): Behavior[Message] = Behaviors.setup { ctx =>
-
-    //    for fs <- fsCodes do
-    ctx.spawn(listenerFireStation(ctx.self), s"listener-fs")
+//    ctx.spawn(listenerFireStation(ctx.self), s"listener-fs")
     debugBehav()
   }
 
@@ -59,8 +66,12 @@ case class ViewActor(fsCodes: Seq[String], gui: FireStationGUI):
   def updateFSZState(str: String, state: Option[ZoneState]): Unit =
     if state.isDefined then state.get match
       case ZoneState.Alarm => gui.setFSZState(str, ZoneStateGUI.Alarm)
-      case ZoneState.Managing => gui.setFSZState(str, ZoneStateGUI.Managing)
+      case ZoneState.InManaging => gui.setFSZState(str, ZoneStateGUI.Managing)
       case ZoneState.Ok => gui.setFSZState(str, ZoneStateGUI.Ok)
     else
-      gui.setFSZState(str,ZoneStateGUI.NotConnected)  
+      gui.setFSZState(str, ZoneStateGUI.NotConnected)
 
+
+@main def testActorGUI(): Unit =
+  val codes = Seq("fs-01", "fs-02", "fs-03", "fs-04")
+  ViewActor(codes)
