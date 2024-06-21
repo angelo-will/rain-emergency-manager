@@ -11,25 +11,26 @@ import message.Message
 import scala.concurrent.duration.{DurationInt, FiniteDuration}
 import scala.util.Random
 
-object Pluviometer:
+object PluviometerActor:
   sealed trait Command extends Message
 
   private case class FindZone(zoneCode: String) extends Command
 
-  private case class ConnectTo(ref: ActorRef[Message]) extends Command
-
   private case class SendDataToZone() extends Command
 
-  private case class Start(zoneRef: ActorRef[Message]) extends Command
+//  private case class ConnectTo(ref: ActorRef[Message]) extends Command
 
-  case class UnsetAlarm(ref: ActorRef[Message]) extends Command
+//  private case class Start(zoneRef: ActorRef[Message]) extends Command
+
+  case class Alarm(zoneRef: ActorRef[Message]) extends Command
+  case class UnsetAlarm(zoneRef: ActorRef[Message]) extends Command
 
   def apply(name: String, zoneCode: String, coordX: Int, coordY: Int): Behavior[Message] =
-    new Pluviometer(name, zoneCode, coordX, coordY).idle
+    new PluviometerActor(name, zoneCode, coordX, coordY).findZone
 
-private case class Pluviometer(name: String, zoneCode: String, coordX: Int, coordY: Int):
+private case class PluviometerActor(pluviometer: ):
 
-  import Pluviometer.*
+  import PluviometerActor.*
   import zone.*
   import Zone.ElementConnectedAck
   import Zone.PluviometerTryRegister
