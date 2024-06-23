@@ -13,16 +13,12 @@ import scala.swing.Action
 object ViewActor:
   sealed trait Command extends Message
 
-  def apply(fsCodes: Seq[String]): Unit =
-    val gui = FireStationGUI(fsCodes)
-    for fs <- fsCodes do
-      gui.addButtonListener(ViewListenerActor(fs), fs)
-    val viewActor = new ViewActor(fsCodes, gui).start()
-    gui.main(Array.empty)
+  def apply(fsCodes: Seq[String]): Behavior[Message] =
+    new ViewActor(fsCodes).start()
 
 
 
-case class ViewActor(fsCodes: Seq[String], gui: FireStationGUI):
+case class ViewActor(fsCodes: Seq[String]):
 
   import akka.actor.typed.pubsub.{Topic, PubSub}
   import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
@@ -38,9 +34,14 @@ case class ViewActor(fsCodes: Seq[String], gui: FireStationGUI):
 
   val AAA = 0
   private val fireStations = mutable.Map[String, ActorRef[Message]]()
+  private val gui = FireStationGUI(fsCodes)
 
   def start(): Behavior[Message] = Behaviors.setup { ctx =>
 //    ctx.spawn(listenerFireStation(ctx.self), s"listener-fs")
+    println("ViewActor started")
+      for fs <- fsCodes do
+        gui.addButtonListener(ViewListenerActor(fs, ctx.self), fs)
+      gui.main(Array.empty)
     debugBehav()
   }
 
