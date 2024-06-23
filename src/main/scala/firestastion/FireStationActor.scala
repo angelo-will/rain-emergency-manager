@@ -1,13 +1,15 @@
 package firestastion
 
+import akka.actor.typed.pubsub.Topic
 import akka.actor.typed.receptionist.{Receptionist, ServiceKey}
-import akka.actor.typed.scaladsl.Behaviors
+import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
 import akka.actor.typed.{ActorRef, Behavior}
 import firestastion.FireStationActor.AdapterMessageForConnection
 import message.Message
 import systemelements.SystemElements.FireStationState.{Busy, Free}
 import systemelements.SystemElements.{FireStation, FireStationState, ZoneState}
 import zone.ZoneActor
+import zone.ZoneActor.ZoneStatus
 
 object FireStationActor:
 
@@ -80,18 +82,20 @@ private case class FireStationActor(name: String, fireStationCode: String, zoneC
 
     Behaviors.withTimers { timers =>
       timers.startTimerAtFixedRate(SendGetStatus(zoneRef), askZoneStatus)
-      Behaviors.receiveMessagePartial {
-        case SendGetStatus(zoneRef) =>
-          zoneRef ! ZoneActor.GetZoneStatus(ctx.self)
-          Behaviors.same
-        case ZoneActor.ZoneStatus(zoneClass, zoneRef) =>
-          //send message to gui using pub/sub
-          topic ! Topic.publish(
-            FireStationStatus(FireStation(fireStationCode, fireState, zoneClass))
-          )
-          zoneClass.zoneState match
-            case ZoneState.Alarm => inAlarm(zoneRef)
-            case _ => Behaviors.same
+      Behaviors.receivePartial {
+        requestZoneStatus(Behaviors.same)
+          .orElse(askZoneUpdate(Behaviors.same, topic, true))
+//        case SendGetStatus(zoneRef) =>
+//          zoneRef ! ZoneActor.GetZoneStatus(ctx.self)
+//          Behaviors.same
+//        case ZoneStatus(zoneClass, zoneRef) =>
+//          //send message to gui using pub/sub
+//          topic ! Topic.publish(
+//            FireStationStatus(FireStation(fireStationCode, fireState, zoneClass))
+//          )
+//          zoneClass.zoneState match
+//            case ZoneState.Alarm => inAlarm(zoneRef)
+//            case _ => Behaviors.same
       }
     }
   }
@@ -103,24 +107,55 @@ private case class FireStationActor(name: String, fireStationCode: String, zoneC
 
     Behaviors.withTimers { timers =>
       timers.startTimerAtFixedRate(SendGetStatus(zoneRef), askZoneStatus)
-      Behaviors.receiveMessagePartial {
-        case SendGetStatus(zoneRef) =>
-          zoneRef ! ZoneActor.GetZoneStatus(ctx.self)
-          Behaviors.same
-        case ZoneActor.ZoneStatus(zoneClass, zoneRef) =>
-          //send message to gui using pub/sub
-          topic ! Topic.publish(
-            FireStationStatus(FireStation(fireStationCode, fireState, zoneClass))
-          )
-          Behaviors.same
-        case Managing() =>
-          zoneRef ! ZoneActor.UnderManagement(ctx.self)
-          fireState = Busy
-          Behaviors.same
-        case Solved() =>
-          zoneRef ! ZoneActor.Solved(ctx.self)
-          fireState = Free
-          operating(zoneRef)
+
+      Behaviors.receivePartial {
+        requestZoneStatus(Behaviors.same)
+          .orElse(askZoneUpdate(Behaviors.same, topic, false))
+          .orElse {
+            case (ctx, Managing()) =>
+              zoneRef ! ZoneActor.UnderManagement(ctx.self)
+              fireState = Busy
+              Behaviors.same
+            case (ctx, Solved()) =>
+              zoneRef ! ZoneActor.Solved(ctx.self)
+              fireState = Free
+              operating(zoneRef)
+          }
       }
+//      Behaviors.receiveMessagePartial {
+//        case SendGetStatus(zoneRef) =>
+//          zoneRef ! ZoneActor.GetZoneStatus(ctx.self)
+//          Behaviors.same
+//        case ZoneActor.ZoneStatus(zoneClass, zoneRef) =>
+//          //send message to gui using pub/sub
+//          topic ! Topic.publish(
+//            FireStationStatus(FireStation(fireStationCode, fireState, zoneClass))
+//          )
+//          Behaviors.same
+//        case Managing() =>
+//          zoneRef ! ZoneActor.UnderManagement(ctx.self)
+//          fireState = Busy
+//          Behaviors.same
+//        case Solved() =>
+//          zoneRef ! ZoneActor.Solved(ctx.self)
+//          fireState = Free
+//          operating(zoneRef)
+//      }
     }
   }
+
+  private def requestZoneStatus(behaviour: Behavior[Message]): PartialFunction[(ActorContext[Message], Message), Behavior[Message]] =
+    case (ctx, SendGetStatus(zoneRef)) =>
+      zoneRef ! ZoneActor.GetZoneStatus(ctx.self)
+      behaviour
+
+  private def askZoneUpdate(behaviour: Behavior[Message], topic: ActorRef[Topic.Command[Message]], goIntoAlarm: Boolean): PartialFunction[(ActorContext[Message], Message), Behavior[Message]] =
+    case (ctx, ZoneStatus(zoneClass, zoneRef)) =>
+      topic ! Topic.publish(
+        FireStationStatus(FireStation(fireStationCode, fireState, zoneClass))
+      )
+      zoneClass.zoneState match
+        case ZoneState.Alarm =>  if goIntoAlarm then inAlarm(zoneRef) else behaviour
+        case _ => behaviour
+
+
