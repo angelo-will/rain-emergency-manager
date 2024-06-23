@@ -8,6 +8,7 @@ import firestastion.FireStationActor
 import zone.ZoneActor
 import systemelements.SystemElements.*
 import systemelements.SystemElements.PluviometerState.NotAlarm
+import view.ViewActor
 
 import scala.concurrent.duration.{DAYS, FiniteDuration}
 import scala.util.Random
@@ -22,10 +23,15 @@ object Deploy:
   def fireStation(zoneCode: String, fireStationName: String): Behavior[Message] =
     deploy(FireStationActor(fireStationName, fireStationName, zoneCode), s"actor-$fireStationName")
 
+  def view(fsCodes: Seq[String]): Behavior[Message] =
+    deploy(ViewActor(fsCodes), "actor-view")
+
   private def deploy(behavior: Behavior[Message], actorName: String): Behavior[Message] = Behaviors.setup { ctx =>
     ctx.spawn(behavior, actorName)
     Behaviors.empty
   }
+
+
 
 // Single start
 
@@ -115,13 +121,13 @@ object Main extends App:
   //@main def startZone02(): Unit =
 
   @main def deploySensor01(): Unit =
-    startup(port = 8080)(Deploy.pluviometer("zone-01", "esp32-001", 1, 1))
+    startup(port = 8100)(Deploy.pluviometer("zone-01", "esp32-001", 1, 1))
 
   @main def deploySensor02(): Unit =
-    startup(port = 8081)(Deploy.pluviometer("zone-01", "esp32-002", 1, 2))
+    startup(port = 8101)(Deploy.pluviometer("zone-01", "esp32-002", 1, 2))
 
   @main def deploySensor03(): Unit =
-    startup(port = 8082)(Deploy.pluviometer("zone-01", "esp32-003", 1, 3))
+    startup(port = 8102)(Deploy.pluviometer("zone-01", "esp32-003", 1, 3))
 
 
 
@@ -175,3 +181,8 @@ object TestPub:
 @main def testPubSub2(): Unit =
   startup(port = 2552)(TestPub("22222"))
 //  startup(port = 8084)(TestSub())
+
+// Deploy view
+@main def deployView(): Unit =
+  val codes = Seq("fs-01", "fs-02", "fs-03", "fs-04")
+  startup(port = 8004)(Deploy.view(codes))
