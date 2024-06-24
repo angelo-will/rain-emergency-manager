@@ -1,13 +1,11 @@
 package pluviometer
 
-import systemelements.SystemElements.Pluviometer
 import akka.actor.typed.receptionist.{Receptionist, ServiceKey}
 import akka.actor.typed.scaladsl.*
 import akka.actor.typed.{ActorRef, Behavior}
+
 import message.Message
-import systemelements.SystemElements.PluviometerState
-import systemelements.SystemElements.PluviometerAlarm
-import systemelements.SystemElements.PluviometerNotAlarm
+import systemelements.SystemElements.{Pluviometer, PluviometerAlarm, PluviometerNotAlarm}
 
 import scala.concurrent.duration.FiniteDuration
 import scala.util.Random
@@ -59,32 +57,32 @@ private case class PluviometerActor(pluviometer: Pluviometer):
           case ElementConnectedAck(zoneRef) =>
             ctx.log.info(s"Received ElementConnectedAck pass updateZoneJob")
             timers.cancelAll()
-            updateZoneJob(zoneRef, pluviometer) 
+            updateZoneJob(zoneRef, pluviometer)
         }
       }
     }
 
   private def notAlarm(pluviometer: Pluviometer): Behavior[Message] = Behaviors.receivePartial {
-    handlerSendDataToZone(pluviometer, PluviometerNotAlarm(), Behaviors.same)
+    handlerSendDataToZone(pluviometer, PluviometerNotAlarm())
       .orElse {
         case (ctx, Alarm(zoneRef)) =>
           ctx.log.info(s"Received alarm to zone, passing to alarm")
           alarm(pluviometer)
         case (ctx, msg) =>
           ctx.log.info(s"In NOT alarm received $msg")
-          Behaviors.same  
+          notAlarm(pluviometer)
       }
   }
 
   private def alarm(pluviometer: Pluviometer): Behavior[Message] = Behaviors.receivePartial {
-    handlerSendDataToZone(pluviometer, PluviometerAlarm(), Behaviors.same)
+    handlerSendDataToZone(pluviometer, PluviometerAlarm())
       .orElse {
         case (ctx, UnsetAlarm(zoneRef)) =>
           ctx.log.info(s"Received unset alarm to zone, passin to not alarm")
           notAlarm(pluviometer)
-        case (ctx,msg) =>
+        case (ctx, msg) =>
           ctx.log.info(s"In alarm received $msg")
-          Behaviors.same
+          alarm(pluviometer)
       }
   }
 
@@ -94,12 +92,15 @@ private case class PluviometerActor(pluviometer: Pluviometer):
       notAlarm(pluviometer)
     }
 
-  private def handlerSendDataToZone(pluviometer: Pluviometer, pluvNewState: PluviometerState, behavior: Behavior[Message]): PartialFunction[(ActorContext[Message], Message), Behavior[Message]] =
+  private def handlerSendDataToZone(pluviometer: Pluviometer, pluvNewState: PluviometerState): PartialFunction[(ActorContext[Message], Message), Behavior[Message]] =
     case (ctx, SendDataToZone(zoneRef)) =>
       ctx.log.info(s"Received SendDataToZone from zone")
-      zoneRef ! PluviometerStatus(buildNewPluvWithState(pluviometer, pluvNewState), ctx.self)
-      behavior
-  //    behavior
+      // That's emulate registration data by sensor
+      val newPluviometer = buildNewPluvWithState(pluviometer, pluvNewState)
+      zoneRef ! PluviometerStatus(newPluviometer, ctx.self)
+      pluvNewState match
+        case PluviometerNotAlarm() => notAlarm(newPluviometer)
+        case PluviometerAlarm() => alarm(newPluviometer)
 
   private def buildNewPluvWithState(pluviometer: Pluviometer, pluvState: PluviometerState) =
     Pluviometer(
