@@ -7,7 +7,7 @@ import pluviometer.PluviometerActor
 import firestastion.FireStationActor
 import zone.ZoneActor
 import systemelements.SystemElements.*
-import systemelements.SystemElements.PluviometerState.NotAlarm
+//import systemelements.SystemElements.{PluviometerAlarm, PluviometerNotAlarm}
 import view.ViewActor
 
 import scala.concurrent.duration.{DAYS, FiniteDuration}
@@ -15,10 +15,10 @@ import scala.util.Random
 
 object Deploy:
   def zone(zoneCode: String, zoneName: String, row: Int, column: Int): Behavior[Message] =
-    deploy(ZoneActor(Zone(zoneCode,ZoneState.Ok, Seq(),row,column,100,100)), s"actor-$zoneCode")
+    deploy(ZoneActor(Zone(zoneCode, ZoneState.Ok, Seq(), row, column, 100, 100)), s"actor-$zoneCode")
 
   def pluviometer(zoneCode: String, pluviometerName: String, coordX: Int, coordY: Int): Behavior[Message] =
-    deploy(PluviometerActor( Pluviometer(pluviometerName, zoneCode, Position(coordX, coordY), NotAlarm, 0)), s"actor-$pluviometerName")
+    deploy(PluviometerActor(Pluviometer(pluviometerName, zoneCode, Position(coordX, coordY), 0, PluviometerNotAlarm())), s"actor-$pluviometerName")
 
   def fireStation(zoneCode: String, fireStationName: String): Behavior[Message] =
     deploy(FireStationActor(fireStationName, fireStationName, zoneCode), s"actor-$fireStationName")
@@ -128,7 +128,6 @@ object Main extends App:
 
   @main def deploySensor03(): Unit =
     startup(port = 8102)(Deploy.pluviometer("zone-01", "esp32-003", 1, 3))
-
 
 
 import akka.actor.typed.pubsub.Topic

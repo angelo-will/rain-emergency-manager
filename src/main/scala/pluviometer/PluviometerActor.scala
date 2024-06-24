@@ -5,7 +5,9 @@ import akka.actor.typed.receptionist.{Receptionist, ServiceKey}
 import akka.actor.typed.scaladsl.*
 import akka.actor.typed.{ActorRef, Behavior}
 import message.Message
-import systemelements.SystemElements.PluviometerState.NotAlarm
+import systemelements.SystemElements.PluviometerState
+import systemelements.SystemElements.PluviometerAlarm
+import systemelements.SystemElements.PluviometerNotAlarm
 
 import scala.concurrent.duration.FiniteDuration
 import scala.util.Random
@@ -55,25 +57,34 @@ private case class PluviometerActor(pluviometer: Pluviometer):
             if l.nonEmpty then l.head ! PluviometerTryRegister(pluviometer, ctx.self)
             Behaviors.same
           case ElementConnectedAck(zoneRef) =>
+            ctx.log.info(s"Received ElementConnectedAck pass updateZoneJob")
             timers.cancelAll()
-            updateZoneJob(zoneRef, pluviometer)
+            updateZoneJob(zoneRef, pluviometer) 
         }
       }
     }
 
   private def notAlarm(pluviometer: Pluviometer): Behavior[Message] = Behaviors.receivePartial {
-    handlerSendDataToZone(pluviometer, PluviometerState.NotAlarm, Behaviors.same)
+    handlerSendDataToZone(pluviometer, PluviometerNotAlarm(), Behaviors.same)
       .orElse {
         case (ctx, Alarm(zoneRef)) =>
+          ctx.log.info(s"Received alarm to zone, passing to alarm")
           alarm(pluviometer)
+        case (ctx, msg) =>
+          ctx.log.info(s"In NOT alarm received $msg")
+          Behaviors.same  
       }
   }
 
   private def alarm(pluviometer: Pluviometer): Behavior[Message] = Behaviors.receivePartial {
-    handlerSendDataToZone(pluviometer, PluviometerState.Alarm, Behaviors.same)
+    handlerSendDataToZone(pluviometer, PluviometerAlarm(), Behaviors.same)
       .orElse {
         case (ctx, UnsetAlarm(zoneRef)) =>
+          ctx.log.info(s"Received unset alarm to zone, passin to not alarm")
           notAlarm(pluviometer)
+        case (ctx,msg) =>
+          ctx.log.info(s"In alarm received $msg")
+          Behaviors.same
       }
   }
 
@@ -84,7 +95,10 @@ private case class PluviometerActor(pluviometer: Pluviometer):
     }
 
   private def handlerSendDataToZone(pluviometer: Pluviometer, pluvNewState: PluviometerState, behavior: Behavior[Message]): PartialFunction[(ActorContext[Message], Message), Behavior[Message]] =
-    case (ctx, SendDataToZone(zoneRef)) => zoneRef ! PluviometerStatus(buildNewPluvWithState(pluviometer, pluvNewState), ctx.self); behavior
+    case (ctx, SendDataToZone(zoneRef)) =>
+      ctx.log.info(s"Received SendDataToZone from zone")
+      zoneRef ! PluviometerStatus(buildNewPluvWithState(pluviometer, pluvNewState), ctx.self)
+      behavior
   //    behavior
 
   private def buildNewPluvWithState(pluviometer: Pluviometer, pluvState: PluviometerState) =
@@ -92,8 +106,8 @@ private case class PluviometerActor(pluviometer: Pluviometer):
       pluviometer.pluvCode,
       pluviometer.zoneCode,
       pluviometer.position,
+      Random.nextInt(200),
       pluvState,
-      Random.nextInt(200)
     )
 
 
