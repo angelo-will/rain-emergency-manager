@@ -85,6 +85,7 @@ private case class ZoneActor(zone: Zone):
       pluvTryRegister(Behaviors.same)
         .orElse {
           case (ctx, PluviometerStatus(pluv, pluvRef)) =>
+            ctx.log.info(s"Received pluviometer: $pluv")
             pluviometers(pluv.pluvCode) = pluv
             pluviometersRefs(pluvRef) = pluv.waterLevel >= maxWaterLevel
             if isZoneInAlarm then 
@@ -103,6 +104,7 @@ private case class ZoneActor(zone: Zone):
       pluvTryRegister(Behaviors.same)
         .orElse {
           case (ctx, PluviometerStatus(pluv, pluvRef)) =>
+            ctx.log.info(s"Received pluviometer: $pluv")
             pluviometers(pluv.pluvCode) = pluv
             pluvRef ! PluviometerActor.Alarm(ctx.self)
             Behaviors.same
