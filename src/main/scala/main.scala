@@ -17,7 +17,16 @@ import scala.util.Random
 
 object Deploy:
   def zone(zoneCode: String, zoneName: String, row: Int, column: Int): Behavior[Message] =
-    deploy(ZoneActor(Zone(zoneCode, ZoneState.Ok, Seq(), row, column, 100, 100)), s"actor-$zoneCode")
+    deploy(ZoneActor(Zone(
+      zoneCode,
+      ZoneState.Ok,
+      pluviometers = Map(),
+      maxPluviometersPerZone = 3,
+      maxWaterLevel = 200,
+      row,
+      column,
+      width = 100,
+      height = 100)), s"actor-$zoneCode")
 
   def pluviometer(zoneCode: String, pluviometerName: String, coordX: Int, coordY: Int): Behavior[Message] =
     deploy(PluviometerActor(Pluviometer(pluviometerName, zoneCode, Position(coordX, coordY), 0, PluviometerNotAlarm())), s"actor-$pluviometerName")
