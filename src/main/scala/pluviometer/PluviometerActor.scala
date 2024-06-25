@@ -96,20 +96,11 @@ private case class PluviometerActor(pluviometer: Pluviometer):
     case (ctx, SendDataToZone(zoneRef)) =>
       ctx.log.info(s"Received SendDataToZone from zone")
       // That's emulate registration data by sensor
-      val newPluviometer = buildNewPluvWithState(pluviometer, pluvNewState)
+      val newPluviometer = pluviometer.copy(waterLevel = Random.nextInt(400),pluviometerState = pluvNewState)
       zoneRef ! PluviometerStatus(newPluviometer, ctx.self)
       pluvNewState match
         case PluviometerNotAlarm() => notAlarm(newPluviometer)
         case PluviometerAlarm() => alarm(newPluviometer)
-
-  private def buildNewPluvWithState(pluviometer: Pluviometer, pluvState: PluviometerState) =
-    Pluviometer(
-      pluviometer.pluvCode,
-      pluviometer.zoneCode,
-      pluviometer.position,
-      Random.nextInt(200),
-      pluvState,
-    )
 
 
   private def info(ctx: ActorContext[Message])(msg: String) = ctx.log.info(msg)
