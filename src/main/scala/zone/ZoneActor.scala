@@ -59,7 +59,7 @@ private case class ZoneActor():
             ctx.log.info(s"Received pluviometer: $pluv")
             val newPluviometers = zone.pluviometers + ((pluv.pluvCode, pluv))
             pluviometersRefs(pluvRef) = pluv.waterLevel >= zone.maxWaterLevel
-            if isZoneInAlarm then
+            if isZoneInAlarm2(zone) then
               pluvRef ! PluviometerActor.Alarm(ctx.self)
               for ((pluvRef, _) <- pluviometersRefs)
                 pluviometersRefs(pluvRef) = true
@@ -119,7 +119,7 @@ private case class ZoneActor():
       Behaviors.same
 
   private def getZoneStatusHandler(zone: Zone, behavior: Zone => Behavior[Message]): PartialFunction[(ActorContext[Message], Message), Behavior[Message]] =
-    case (ctx, GetZoneStatus(replyTo)) => ZoneStatus(zone, ctx.self); behavior(zone)
+    case (ctx, GetZoneStatus(replyTo)) => replyTo ! ZoneStatus(zone, ctx.self); behavior(zone)
 
 
   private def memberExited(): PartialFunction[(ActorContext[Message], Message), Behavior[Message]] =
@@ -148,6 +148,11 @@ private case class ZoneActor():
     for ((pluvRef, _) <- pluviometersRefs)
       pluvRef ! UnsetAlarm(ctx.self)
       pluviometersRefs(pluvRef) = false
+
+  private def isZoneInAlarm2(zone:Zone) =
+    zone.pluviometers.foldLeft (0) {
+      case (count, (_,p)) => if p.waterLevel >= zone.maxWaterLevel then count + 1 else count
+    } >= zone.pluviometers.size
 
   private def isZoneInAlarm =
     pluviometersRefs.foldLeft(0) {
