@@ -1,10 +1,12 @@
-import akka.actor.typed.Behavior
+import akka.actor.typed.{ActorRef, Behavior}
+import akka.actor.typed.pubsub.{PubSub, Topic}
 import akka.actor.typed.receptionist.{Receptionist, ServiceKey}
 import akka.actor.typed.scaladsl.Behaviors
 import message.Message
 import utils.{seeds, startup}
 import pluviometer.PluviometerActor
 import firestastion.FireStationActor
+import firestastion.FireStationActor.{FireStationStatus, Managing, Solved}
 import zone.ZoneActor
 import systemelements.SystemElements.*
 //import systemelements.SystemElements.{PluviometerAlarm, PluviometerNotAlarm}
@@ -20,8 +22,8 @@ object Deploy:
   def pluviometer(zoneCode: String, pluviometerName: String, coordX: Int, coordY: Int): Behavior[Message] =
     deploy(PluviometerActor(Pluviometer(pluviometerName, zoneCode, Position(coordX, coordY), 0, PluviometerNotAlarm())), s"actor-$pluviometerName")
 
-  def fireStation(zoneCode: String, fireStationName: String): Behavior[Message] =
-    deploy(FireStationActor(fireStationName, fireStationName, zoneCode), s"actor-$fireStationName")
+  def fireStation(zoneCode: String, fireStationName: String, PubSubChannelName: String): Behavior[Message] =
+    deploy(FireStationActor(fireStationName, fireStationName, zoneCode, PubSubChannelName), s"actor-$fireStationName")
 
   def view(fsCodes: Seq[String]): Behavior[Message] =
     deploy(ViewActor(fsCodes), "actor-view")
@@ -39,7 +41,7 @@ object Deploy:
   startup(port = 2551)(Deploy.zone("zone-01", "zone-01", 1, 1))
 
 @main def singleDeployFireStation01(): Unit =
-  startup(port = 8090)(Deploy.fireStation("zone-01", "firestation-01"))
+  startup(port = 8090)(Deploy.fireStation("zone-01", "firestation-01", "GUIChannel"))
 
 @main def singleDeploySensor01(): Unit =
   startup(port = 8080)(Deploy.pluviometer("zone-01", "esp32-001", 1, 1))
@@ -49,7 +51,6 @@ object Deploy:
 
 @main def singleDeploySensor03(): Unit =
   startup(port = 8082)(Deploy.pluviometer("zone-01", "esp32-003", 1, 3))
-
 
 @main def testCode: Unit =
   val city = Main.City(100, 200, 2, 2)
@@ -88,6 +89,35 @@ object Deploy:
     println(s"startup(port = ${9000 + index})(FireStationDeploy(${zone.zoneCode}, firestation-$index))")
 
 
+object TestFirestation:
+
+  sealed trait Command extends Message
+
+  def apply() = Behaviors.setup { ctx =>
+    val pubSub = PubSub(ctx.system)
+
+    val topic: ActorRef[Topic.Command[Message]] = pubSub.topic[Message]("GUIChannel")
+
+    topic ! Topic.Subscribe(ctx.self)
+
+    Behaviors.receiveMessagePartial {
+      case FireStationStatus(firestation) =>
+        firestation.zone.zoneState match
+          case ZoneState.Ok => ctx.log.info("Firestation says everything is ok"); Behaviors.same
+          case ZoneState.Alarm => 
+            ctx.log.info("Firestation says everything there's an alarm") 
+            topic ! Topic.publish(Managing("firestation-01"))
+            Behaviors.same
+          case ZoneState.InManaging => 
+            ctx.log.info("Firestation says it's managing the alarm")
+            topic ! Topic.publish(Solved("firestation-01"))
+            Behaviors.same
+    }
+  }
+
+@main def testFirestation: Unit =
+  val ref = startup(port = 1503)(TestFirestation.apply())
+
 object Main extends App:
 
   case class City(width: Double, height: Double, columns: Int, rows: Int)
@@ -112,7 +142,7 @@ object Main extends App:
 
 
   @main def startFireStation01(): Unit =
-    startup(port = 8090)(Deploy.fireStation("zone-01", "firestation-01"))
+    startup(port = 8090)(Deploy.fireStation("zone-01", "firestation-01", "GUIChannel"))
 
   @main def startZone01(): Unit =
     startup(port = 2551)(Deploy.zone("zone-01", "zone-01", 1, 1))
