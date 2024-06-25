@@ -45,6 +45,7 @@ case class ViewActor(fsCodes: Seq[String]):
     val topic: ActorRef[Topic.Command[Message]] = PubSub(ctx.system).topic[Message]("firestations-topic")
     topic ! Topic.subscribe(ctx.self)
     Behaviors.receiveMessagePartial {
+      // Sent by ViewListenerActor
       case FireStationActor.Managing(fsCode) =>
         println("Received Managing")
         updateFSState(fsCode, FireStationState.Busy)
@@ -55,14 +56,11 @@ case class ViewActor(fsCodes: Seq[String]):
         updateFSState(fsCode, FireStationState.Free)
         updateFSZState(fsCode, ZoneState.Ok)
         Behaviors.same
+      // Sent by Actors
       case FireStationStatus(FireStation(fsCode, fireState, zoneClass)) =>
         updateFSState(fsCode, fireState)
-        zoneClass.zoneState match
-          case ZoneState.Alarm =>
-            println("Received Alarm")
-            updateFSZState(fsCode, zoneClass.zoneState)
-          case _ =>updateFSState(fsCode, fireState)
-            updateFSZState(fsCode, zoneClass.zoneState)
+        updateFSZState(fsCode, zoneClass.zoneState)
+        if zoneClass.zoneState == ZoneState.Alarm then println("Received Alarm")
         Behaviors.same
     }
   }
