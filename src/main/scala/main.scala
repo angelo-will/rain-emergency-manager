@@ -15,12 +15,16 @@ import view.ViewActor
 import scala.concurrent.duration.{DAYS, FiniteDuration}
 import scala.util.Random
 
+private var fireStationCode1: String = "firestation-1"
+private var zoneCode1: String = "zone-1"
+private var topicName: String = "GUIChannel"
+
 object Deploy:
   def zone(zoneCode: String, zoneName: String, row: Int, column: Int): Behavior[Message] =
     deploy(ZoneActor(
       Zone(
         zoneCode,
-        ZoneState.Ok,
+        ZoneOk(),
         pluviometers = Map(),
         maxPluviometersPerZone = 3,
         maxWaterLevel = 200,
@@ -59,10 +63,10 @@ object Deploy:
 // Single start
 
 @main def singleDeployZone01(): Unit =
-  startup(port = 2551)(Deploy.zone("zone-01", "zone-01", 1, 1))
+  startup(port = 2551)(Deploy.zone(zoneCode1, zoneCode1, 1, 1))
 
 @main def singleDeployFireStation01(): Unit =
-  startup(port = 8090)(Deploy.fireStation("zone-01", "firestation-01", "GUIChannel"))
+  startup(port = 8090)(Deploy.fireStation(zoneCode1, fireStationCode1, topicName))
 
 @main def singleDeploySensor01(): Unit =
   startup(port = 8080)(Deploy.pluviometer("zone-01", "esp32-001", 1, 1))
@@ -124,12 +128,12 @@ object TestFirestation:
     Behaviors.receiveMessagePartial {
       case FireStationStatus(firestation) =>
         firestation.zone.zoneState match
-          case ZoneState.Ok => ctx.log.info("Firestation says everything is ok"); Behaviors.same
-          case ZoneState.Alarm =>
+          case ZoneOk() => ctx.log.info("Firestation says everything is ok"); Behaviors.same
+          case ZoneAlarm() =>
             ctx.log.info("Firestation says everything there's an alarm")
             topic ! Topic.publish(Managing("firestation-01"))
             Behaviors.same
-          case ZoneState.InManaging =>
+          case ZoneInManaging() =>
             ctx.log.info("Firestation says it's managing the alarm")
             topic ! Topic.publish(Solved("firestation-01"))
             Behaviors.same
@@ -234,5 +238,6 @@ object TestPub:
 
 // Deploy view
 @main def deployView(): Unit =
-  val codes = Seq("fs-01", "fs-02", "fs-03", "fs-04")
+//  val codes = Seq("fs-01", "fs-02", "fs-03", "fs-04")
+  val codes = Seq(fireStationCode1)
   startup(port = 8004)(Deploy.view(codes))

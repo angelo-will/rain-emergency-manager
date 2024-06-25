@@ -4,7 +4,7 @@ package view
 import akka.actor.typed.Behavior
 import firestastion.FireStationActor.FireStationStatus
 import message.Message
-import systemelements.SystemElements.{FireStation, ZoneState}
+import systemelements.SystemElements.*
 import view.ViewListenerActor.ActionCommand.{END_INTERVENTION, INTERVENE, WAITING}
 
 object ViewActor:
@@ -42,25 +42,25 @@ case class ViewActor(fsCodes: Seq[String]):
   }
 
   private def listenerFireStation(forwardActor: ActorRef[Message]) = Behaviors.setup { ctx =>
-    val topic: ActorRef[Topic.Command[Message]] = PubSub(ctx.system).topic[Message]("firestations-topic")
+    val topic: ActorRef[Topic.Command[Message]] = PubSub(ctx.system).topic[Message]("GUIChannel")
     topic ! Topic.subscribe(ctx.self)
     Behaviors.receiveMessagePartial {
       // Sent by ViewListenerActor
       case FireStationActor.Managing(fsCode) =>
         println("Received Managing")
-        updateFSState(fsCode, FireStationState.Busy)
-        updateFSZState(fsCode, ZoneState.InManaging)
+        updateFSState(fsCode, FireStationBusy())
+        updateFSZState(fsCode, ZoneInManaging())
         Behaviors.same
       case FireStationActor.Solved(fsCode) =>
         println("Received Solved")
-        updateFSState(fsCode, FireStationState.Free)
-        updateFSZState(fsCode, ZoneState.Ok)
+        updateFSState(fsCode, FireStationFree())
+        updateFSZState(fsCode, ZoneOk())
         Behaviors.same
       // Sent by Actors
       case FireStationStatus(FireStation(fsCode, fireState, zoneClass)) =>
         updateFSState(fsCode, fireState)
         updateFSZState(fsCode, zoneClass.zoneState)
-        if zoneClass.zoneState == ZoneState.Alarm then println("Received Alarm")
+        if zoneClass.zoneState == ZoneAlarm() then println("Received Alarm")
         Behaviors.same
     }
   }
@@ -70,18 +70,21 @@ case class ViewActor(fsCodes: Seq[String]):
       case (ctx, _) => Behaviors.same
     }
 
-  private def updateFSState(fsCode: String, fireStationState: FireStationState): Unit = fireStationState match
-    case FireStationState.Free => gui.setFSState(fsCode, FireStationStateGUI.Free)
-    case FireStationState.Busy => gui.setFSState(fsCode, FireStationStateGUI.Busy)
+  private def updateFSState(fsCode: String, fireStationState: FireStationState): Unit =
+    println(fireStationState)
+    fireStationState match
+    case FireStationFree() => gui.setFSState(fsCode, FireStationStateGUI.Free)
+    case FireStationBusy() => gui.setFSState(fsCode, FireStationStateGUI.Busy)
+    case s => println(s)
 
   private def updateFSZState(fsCode: String, zoneState: ZoneState): Unit =
     zoneState match
-      case ZoneState.Alarm =>
+      case ZoneAlarm() =>
         gui.setFSZState(fsCode, ZoneStateGUI.Alarm)
         gui.setButtonAction(ViewListenerActor(fsCode, context, INTERVENE), fsCode)
-      case ZoneState.InManaging =>
+      case ZoneInManaging() =>
         gui.setFSZState(fsCode, ZoneStateGUI.Managing)
         gui.setButtonAction(ViewListenerActor(fsCode, context, END_INTERVENTION), fsCode)
-      case ZoneState.Ok =>
+      case ZoneOk() =>
         gui.setFSZState(fsCode, ZoneStateGUI.Ok)
         gui.setButtonAction(ViewListenerActor(fsCode, context, WAITING), fsCode)

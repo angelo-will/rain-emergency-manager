@@ -2,15 +2,29 @@ package systemelements
 
 object SystemElements:
 
-  enum ZoneState:
-    case Ok
-    case Alarm
-    case InManaging
+  class ZoneState(state: String) extends Serializable:
+    override def toString: String = s"ZoneState: $state"
 
-  enum FireStationState:
-    case Free
-    case Busy
+  case class ZoneOk() extends ZoneState("OK")
+  case class ZoneAlarm() extends ZoneState("Alarm")
+  case class ZoneInManaging() extends ZoneState("InManaging")
 
+  class FireStationState(state: String) extends Serializable:
+    override def toString: String = s"FireStationState: $state"
+
+  case class FireStationFree() extends FireStationState("Free")
+  case class FireStationBusy() extends FireStationState("Alarm")
+
+//  enum ZoneState:
+//    case Ok
+//    case Alarm
+//    case InManaging
+
+//  enum FireStationState:
+//    case Free
+//    case Busy
+
+  //Case classes for pluviometer, use instead of enum for serialization
   class PluviometerState(state : String) extends Serializable:
     override def toString: String = s"PluviometerState: $state"
 

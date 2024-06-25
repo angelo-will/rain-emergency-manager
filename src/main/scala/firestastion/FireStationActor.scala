@@ -5,8 +5,7 @@ import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
 import akka.actor.typed.{ActorRef, Behavior}
 import firestastion.FireStationActor.AdapterMessageForConnection
 import message.Message
-import systemelements.SystemElements.FireStationState.{Busy, Free}
-import systemelements.SystemElements.{FireStation, FireStationState, ZoneState}
+import systemelements.SystemElements.{FireStation, FireStationBusy, FireStationFree, FireStationState, ZoneAlarm, ZoneState}
 import zone.ZoneActor
 import zone.ZoneActor.ZoneStatus
 
@@ -47,7 +46,7 @@ private case class FireStationActor(name: String, fireStationCode: String, zoneC
   private val updateGUIConnectedFrequency = FiniteDuration(10, "second")
   private val askZoneStatus = FiniteDuration(10, "second")
   private var lastZoneState: Option[ZoneState] = None
-  private var fireState = Free
+  private var fireState:FireStationState = FireStationFree()
 
   private var zoneRef: Option[ActorRef[Message]] = None
 
@@ -113,12 +112,12 @@ private case class FireStationActor(name: String, fireStationCode: String, zoneC
             case (ctx, Managing(stationCode)) =>
               if stationCode equals fireStationCode then
                 zoneRef ! ZoneActor.UnderManagement(ctx.self)
-                fireState = Busy
+                fireState = FireStationBusy()
               Behaviors.same
             case (ctx, Solved(stationCode)) =>
               if stationCode equals fireStationCode then
                 zoneRef ! ZoneActor.Solved(ctx.self)
-                fireState = Free
+                fireState = FireStationFree()
               timers.cancelAll()
               operating(zoneRef)
           }
@@ -162,7 +161,7 @@ private case class FireStationActor(name: String, fireStationCode: String, zoneC
         FireStationStatus(FireStation(fireStationCode, fireState, zoneClass))
       )
       zoneClass.zoneState match
-        case ZoneState.Alarm =>
+        case ZoneAlarm() =>
           ctx.log.info(s"Going into Alarm")
           if goIntoAlarm then inAlarm(zoneRef) else behaviour
         case _ => behaviour
