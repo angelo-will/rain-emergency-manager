@@ -1,6 +1,5 @@
 package firestastion
 
-import akka.actor.typed.pubsub.Topic
 import akka.actor.typed.receptionist.{Receptionist, ServiceKey}
 import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
 import akka.actor.typed.{ActorRef, Behavior}
@@ -15,9 +14,9 @@ object FireStationActor:
 
   sealed trait Command extends Message
 
-  case class Managing() extends Command
+  case class Managing(stationCode: String) extends Command
 
-  case class Solved() extends Command
+  case class Solved(stationCode: String) extends Command
 
   ///////////
   case class FindZone(zoneCode: String) extends Command
@@ -34,10 +33,10 @@ object FireStationActor:
   private case class AdapterMessageForConnection(listing: Receptionist.Listing) extends Command
 
 
-  def apply(name: String, fireStationCode: String, zoneCode: String): Behavior[Message] =
-    new FireStationActor(name, fireStationCode, zoneCode).starting()
+  def apply(name: String, fireStationCode: String, zoneCode: String, PubSubChannelName: String): Behavior[Message] =
+    new FireStationActor(name, fireStationCode, zoneCode, PubSubChannelName).starting()
 
-private case class FireStationActor(name: String, fireStationCode: String, zoneCode: String):
+private case class FireStationActor(name: String, fireStationCode: String, zoneCode: String, PubSubChannelName: String):
   
   import FireStationActor.{Managing, Solved, FindZone, SendGetStatus, FireStationStatus}
   import scala.concurrent.duration.FiniteDuration
@@ -45,8 +44,8 @@ private case class FireStationActor(name: String, fireStationCode: String, zoneC
   import akka.actor.typed.pubsub.PubSub
 
   private val searchingZoneFrequency = FiniteDuration(5, "second")
-  private val updateGUIConnectedFrequency = FiniteDuration(5, "second")
-  private val askZoneStatus = FiniteDuration(5, "second")
+  private val updateGUIConnectedFrequency = FiniteDuration(10, "second")
+  private val askZoneStatus = FiniteDuration(10, "second")
   private var lastZoneState: Option[ZoneState] = None
   private var fireState = Free
 
@@ -54,8 +53,7 @@ private case class FireStationActor(name: String, fireStationCode: String, zoneC
 
   //First thing to do is retrieve the zoneActor reference
   private def starting(): Behavior[Message] = Behaviors.setup { ctx =>
-    val pubSub = PubSub(ctx.system)
-    val topic: ActorRef[Topic.Command[Message]] = pubSub.topic[Message]("channel")
+    val topic = retrievePubSubTopic(ctx)
     topic ! Topic.Subscribe(ctx.self)
 
     Behaviors.withTimers { timers =>
@@ -69,6 +67,8 @@ private case class FireStationActor(name: String, fireStationCode: String, zoneC
         case AdapterMessageForConnection(zoneServiceKey.Listing(l))  =>
           if (l.nonEmpty) {
             // found the zone, move to work
+            ctx.log.info(s"Found $zoneCode, now start normal operations")
+            timers.cancelAll()
             operating(l.head)
           } else Behaviors.same
       }
@@ -77,14 +77,13 @@ private case class FireStationActor(name: String, fireStationCode: String, zoneC
 
   private def operating(zoneRef: ActorRef[Message]): Behavior[Message] = Behaviors.setup { ctx =>
 
-    val pubSub = PubSub(ctx.system)
-    val topic: ActorRef[Topic.Command[Message]] = pubSub.topic[Message]("channel")
+    val topic = retrievePubSubTopic(ctx)
 
     Behaviors.withTimers { timers =>
       timers.startTimerAtFixedRate(SendGetStatus(zoneRef), askZoneStatus)
       Behaviors.receivePartial {
         requestZoneStatus(Behaviors.same)
-          .orElse(askZoneUpdate(Behaviors.same, topic, true))
+          .orElse(publishZoneStatus(Behaviors.same, topic, true))
 //        case SendGetStatus(zoneRef) =>
 //          zoneRef ! ZoneActor.GetZoneStatus(ctx.self)
 //          Behaviors.same
@@ -102,23 +101,25 @@ private case class FireStationActor(name: String, fireStationCode: String, zoneC
 
   private def inAlarm(zoneRef: ActorRef[Message]): Behavior[Message] = Behaviors.setup { ctx =>
 
-    val pubSub = PubSub(ctx.system)
-    val topic: ActorRef[Topic.Command[Message]] = pubSub.topic[Message]("channel")
+    val topic = retrievePubSubTopic(ctx)
 
     Behaviors.withTimers { timers =>
       timers.startTimerAtFixedRate(SendGetStatus(zoneRef), askZoneStatus)
 
       Behaviors.receivePartial {
         requestZoneStatus(Behaviors.same)
-          .orElse(askZoneUpdate(Behaviors.same, topic, false))
+          .orElse(publishZoneStatus(Behaviors.same, topic, false))
           .orElse {
-            case (ctx, Managing()) =>
-              zoneRef ! ZoneActor.UnderManagement(ctx.self)
-              fireState = Busy
+            case (ctx, Managing(stationCode)) =>
+              if stationCode equals fireStationCode then
+                zoneRef ! ZoneActor.UnderManagement(ctx.self)
+                fireState = Busy
               Behaviors.same
-            case (ctx, Solved()) =>
-              zoneRef ! ZoneActor.Solved(ctx.self)
-              fireState = Free
+            case (ctx, Solved(stationCode)) =>
+              if stationCode equals fireStationCode then
+                zoneRef ! ZoneActor.Solved(ctx.self)
+                fireState = Free
+              timers.cancelAll()
               operating(zoneRef)
           }
       }
@@ -144,18 +145,26 @@ private case class FireStationActor(name: String, fireStationCode: String, zoneC
     }
   }
 
+  private def retrievePubSubTopic(ctx: ActorContext[Message]): ActorRef[Topic.Command[Message]] =
+    val pubSub = PubSub(ctx.system)
+    pubSub.topic[Message](PubSubChannelName)
+
   private def requestZoneStatus(behaviour: Behavior[Message]): PartialFunction[(ActorContext[Message], Message), Behavior[Message]] =
     case (ctx, SendGetStatus(zoneRef)) =>
+      ctx.log.info(s"Timer tick, i'm asking to $zoneCode its status")
       zoneRef ! ZoneActor.GetZoneStatus(ctx.self)
       behaviour
 
-  private def askZoneUpdate(behaviour: Behavior[Message], topic: ActorRef[Topic.Command[Message]], goIntoAlarm: Boolean): PartialFunction[(ActorContext[Message], Message), Behavior[Message]] =
+  private def publishZoneStatus(behaviour: Behavior[Message], topic: ActorRef[Topic.Command[Message]], goIntoAlarm: Boolean): PartialFunction[(ActorContext[Message], Message), Behavior[Message]] =
     case (ctx, ZoneStatus(zoneClass, zoneRef)) =>
+      ctx.log.info(s"Received status from $zoneCode, sending it on PubSub")
       topic ! Topic.publish(
         FireStationStatus(FireStation(fireStationCode, fireState, zoneClass))
       )
       zoneClass.zoneState match
-        case ZoneState.Alarm =>  if goIntoAlarm then inAlarm(zoneRef) else behaviour
+        case ZoneState.Alarm =>
+          ctx.log.info(s"Going into Alarm")
+          if goIntoAlarm then inAlarm(zoneRef) else behaviour
         case _ => behaviour
 
 
