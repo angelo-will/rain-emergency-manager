@@ -52,6 +52,7 @@ private case class ZoneActor():
   private def working(zone: Zone): Behavior[Message] =
     Behaviors.receivePartial {
       pluvTryRegister(zone)
+        .orElse(getZoneStatusHandler(zone, working))
         .orElse(memberExited())
         .orElse {
           case (ctx, PluviometerStatus(pluv, pluvRef)) =>
@@ -86,6 +87,7 @@ private case class ZoneActor():
       pluvTryRegister(zone)
         .orElse(pluvStatusUpdates(zone, inAlarm))
         .orElse(memberExited())
+        .orElse(getZoneStatusHandler(zone, inAlarm))
         .orElse {
           case (ctx, UnderManagement(fireSRef)) => underManagement(zone.copy(zoneState = ZoneState.InManaging))
         }
@@ -96,6 +98,7 @@ private case class ZoneActor():
       pluvTryRegister(zone)
         .orElse(pluvStatusUpdates(zone, underManagement))
         .orElse(memberExited())
+        .orElse(getZoneStatusHandler(zone, underManagement))
         .orElse {
           case (ctx, Solved(fireSRef)) =>
             ctx.log.info("Received solved")
@@ -114,6 +117,9 @@ private case class ZoneActor():
       else
         ctx.log.info(s"Ricevuto messaggio di registrazione ma ci sono sià ${zone.maxPluviometersPerZone} registrati")
       Behaviors.same
+
+  private def getZoneStatusHandler(zone: Zone, behavior: Zone => Behavior[Message]): PartialFunction[(ActorContext[Message], Message), Behavior[Message]] =
+    case (ctx, GetZoneStatus(replyTo)) => ZoneStatus(zone, ctx.self); behavior(zone)
 
 
   private def memberExited(): PartialFunction[(ActorContext[Message], Message), Behavior[Message]] =

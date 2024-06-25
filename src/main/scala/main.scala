@@ -17,22 +17,36 @@ import scala.util.Random
 
 object Deploy:
   def zone(zoneCode: String, zoneName: String, row: Int, column: Int): Behavior[Message] =
-    deploy(ZoneActor(Zone(
-      zoneCode,
-      ZoneState.Ok,
-      pluviometers = Map(),
-      maxPluviometersPerZone = 3,
-      maxWaterLevel = 200,
-      row,
-      column,
-      width = 100,
-      height = 100)), s"actor-$zoneCode")
+    deploy(ZoneActor(
+      Zone(
+        zoneCode,
+        ZoneState.Ok,
+        pluviometers = Map(),
+        maxPluviometersPerZone = 3,
+        maxWaterLevel = 200,
+        row,
+        column,
+        width = 100,
+        height = 100)
+    ), s"actor-$zoneCode")
 
   def pluviometer(zoneCode: String, pluviometerName: String, coordX: Int, coordY: Int): Behavior[Message] =
-    deploy(PluviometerActor(Pluviometer(pluviometerName, zoneCode, Position(coordX, coordY), 0, PluviometerNotAlarm())), s"actor-$pluviometerName")
+    deploy(PluviometerActor(
+      Pluviometer(
+        pluviometerName,
+        zoneCode,
+        Position(coordX, coordY),
+        waterLevel = 0,
+        PluviometerNotAlarm())
+    ), s"actor-$pluviometerName")
 
   def fireStation(zoneCode: String, fireStationName: String, PubSubChannelName: String): Behavior[Message] =
-    deploy(FireStationActor(fireStationName, fireStationName, zoneCode, PubSubChannelName), s"actor-$fireStationName")
+    deploy(FireStationActor(
+      fireStationName,
+      fireStationName,
+      zoneCode,
+      PubSubChannelName
+    ), s"actor-$fireStationName")
 
   def view(fsCodes: Seq[String]): Behavior[Message] =
     deploy(ViewActor(fsCodes), "actor-view")
@@ -41,9 +55,7 @@ object Deploy:
     ctx.spawn(behavior, actorName)
     Behaviors.empty
   }
-
-
-
+  
 // Single start
 
 @main def singleDeployZone01(): Unit =
@@ -113,11 +125,11 @@ object TestFirestation:
       case FireStationStatus(firestation) =>
         firestation.zone.zoneState match
           case ZoneState.Ok => ctx.log.info("Firestation says everything is ok"); Behaviors.same
-          case ZoneState.Alarm => 
-            ctx.log.info("Firestation says everything there's an alarm") 
+          case ZoneState.Alarm =>
+            ctx.log.info("Firestation says everything there's an alarm")
             topic ! Topic.publish(Managing("firestation-01"))
             Behaviors.same
-          case ZoneState.InManaging => 
+          case ZoneState.InManaging =>
             ctx.log.info("Firestation says it's managing the alarm")
             topic ! Topic.publish(Solved("firestation-01"))
             Behaviors.same
