@@ -52,7 +52,7 @@ object ViewListenerActor:
           println(s"Ora interviene la caserma:$fsCode")
           // Send message to ViewActor or FireStationActor
           // To say that the fire station is intervening
-          val topic: ActorRef[Topic.Command[Message]] = PubSub(ctx.system).topic[Message]("firestations-topic")
+          val topic: ActorRef[Topic.Command[Message]] = PubSub(ctx.system).topic[Message]("GUIChannel")
           topic ! Topic.publish(FireStationActor.Managing(fsCode))
         }
       case ActionCommand.END_INTERVENTION =>
@@ -63,6 +63,6 @@ object ViewListenerActor:
           // The fire station is already intervening and when the intervention ends
           // it will send a message to the ViewActor or FireStationActor
           // The zone is in a InManaging state
-          val topic: ActorRef[Topic.Command[Message]] = PubSub(ctx.system).topic[Message]("firestations-topic")
+          val topic: ActorRef[Topic.Command[Message]] = PubSub(ctx.system).topic[Message]("GUIChannel")
           topic ! Topic.publish(FireStationActor.Solved(fsCode))
         }

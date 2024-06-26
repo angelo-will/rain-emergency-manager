@@ -42,19 +42,10 @@ case class ViewActor(fsCodes: Seq[String]):
     val topic: ActorRef[Topic.Command[Message]] = PubSub(ctx.system).topic[Message]("GUIChannel")
     topic ! Topic.subscribe(ctx.self)
     Behaviors.receiveMessagePartial {
-      // Sent by ViewListenerActor
-      case FireStationActor.Managing(fsCode) =>
-        println("Received Managing")
-        updateFSState(fsCode, FireStationBusy())
-        updateFSZState(fsCode, ZoneInManaging())
-        Behaviors.same
-      case FireStationActor.Solved(fsCode) =>
-        println("Received Solved")
-        updateFSState(fsCode, FireStationFree())
-        updateFSZState(fsCode, ZoneOk())
-        Behaviors.same
       // Sent by Actors
       case FireStationStatus(FireStation(fsCode, fireStationState, zoneClass)) =>
+        updateControlledZone(fsCode, zoneClass.zoneCode)
+        updateFSZSensorsQuantityState(fsCode, zoneClass.pluviometers.size)
         updateFSState(fsCode, fireStationState)
         updateFSZState(fsCode, zoneClass.zoneState)
         if zoneClass.zoneState == ZoneAlarm() then println("Received Alarm")
@@ -66,6 +57,12 @@ case class ViewActor(fsCodes: Seq[String]):
     Behaviors.receivePartial {
       case (ctx, _) => Behaviors.same
     }
+
+  private def updateControlledZone(fsCode: String, zoneCode: String): Unit =
+    gui.setFSZControlled(fsCode, zoneCode)
+
+  private def updateFSZSensorsQuantityState(fsCode: String, pluvQuantity: Int): Unit =
+    gui.setPluvZoneQuantity(fsCode, pluvQuantity)
 
   private def updateFSState(fsCode: String, fireStationState: FireStationState): Unit =
     fireStationState match

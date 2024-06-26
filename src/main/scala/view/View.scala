@@ -53,6 +53,8 @@ case class FireStationStateComponent(fsCode: String) extends BoxPanel(Orientatio
       case FireStationStateGUI.Free => setFireStationState("Libera")
       case FireStationStateGUI.Busy => setFireStationState("Occupata")
 
+  def setControlledZone(zoneCode: String): Unit =
+    zoneControlledCode.text = zoneCode
   def setPluvQuantity(quantity: Int): Unit = sensors.text = "" + quantity
 
   def setButtonAction(listener: Action): Unit =
@@ -60,7 +62,7 @@ case class FireStationStateComponent(fsCode: String) extends BoxPanel(Orientatio
 
   private def setZoneState(state: String): Unit = zoneState.text = state
 
-  private def setFireStationState(state: String): Unit = zoneState.text = state
+  private def setFireStationState(state: String): Unit = fireStationState.text = state
 
 end FireStationStateComponent
 
@@ -89,6 +91,9 @@ case class FireStationGUI(fireStationsCodes: Seq[String]) extends SimpleSwingApp
     val fsComponent = fireStations(fsCode)
     println(s"Add listener to FSComponent ${fsComponent.fsCode}")
     fsComponent.setButtonAction(listener)
+    
+  def setFSZControlled(fsCode: String, zoneCode: String): Unit =
+    fireStations(fsCode).setControlledZone(zoneCode)  
 
   def setFSZState(fSCode: String, zoneStateGUI: ZoneStateGUI): Unit =
     fireStations(fSCode).setZoneState(zoneStateGUI)
