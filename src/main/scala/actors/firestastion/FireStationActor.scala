@@ -44,8 +44,8 @@ private case class FireStationActor(name: String, fireStationCode: String, zoneC
   import akka.actor.typed.pubsub.PubSub
 
   private val searchingZoneFrequency = FiniteDuration(5, "second")
-  private val updateGUIConnectedFrequency = FiniteDuration(10, "second")
-  private val askZoneStatus = FiniteDuration(10, "second")
+  private val updateGUIConnectedFrequency = FiniteDuration(1, "second")
+  private val askZoneStatus = FiniteDuration(1, "second")
   private var lastZoneState: Option[ZoneState] = None
   private var fireState: FireStationState = FireStationFree()
 
@@ -111,11 +111,13 @@ private case class FireStationActor(name: String, fireStationCode: String, zoneC
           .orElse(publishZoneStatus(Behaviors.same, topic, false))
           .orElse {
             case (ctx, Managing(stationCode)) =>
+              ctx.log.info(s"Received Managing with code $stationCode")
               if stationCode equals fireStationCode then
                 zoneRef ! ZoneActor.UnderManagement(ctx.self)
                 fireState = FireStationBusy()
               Behaviors.same
             case (ctx, Solved(stationCode)) =>
+              ctx.log.info(s"Received Solved with code $stationCode")
               if stationCode equals fireStationCode then
                 zoneRef ! ZoneActor.Solved(ctx.self)
                 fireState = FireStationFree()
@@ -162,7 +164,7 @@ private case class FireStationActor(name: String, fireStationCode: String, zoneC
         FireStationStatus(FireStation(fireStationCode, fireState, zoneClass))
       )
       zoneClass.zoneState match
-        case ZoneAlarm() =>
+        case zState if zState.equals(ZoneAlarm()) =>
           ctx.log.info(s"Going into Alarm")
           if goIntoAlarm then inAlarm(zoneRef) else behaviour
         case _ => behaviour
