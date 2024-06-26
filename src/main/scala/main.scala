@@ -16,11 +16,14 @@ private var zoneCode1: String = "zone-1"
 private var topicName: String = "GUIChannel"
 
 // Single start
+@main def singleDeployFireStation01(): Unit =
+  startup(port = 8090)(Deploy.fireStation(zoneCode1, fireStationCode1, topicName))
 
 @main def singleDeployZone01(): Unit =
   val x = 0
   val y = 0
-  val zoneCode = s"zone-$x-$y"
+//  val zoneCode = s"zone-$x-$y"
+  val zoneCode = zoneCode1
   startup(port = 2551)(Deploy.zone(
     Zone(
       zoneCode,
@@ -34,12 +37,10 @@ private var topicName: String = "GUIChannel"
       height = 200
     ), s"actor-$zoneCode"))
 
-@main def singleDeployFireStation01(): Unit =
-  startup(port = 8090)(Deploy.fireStation(zoneCode1, fireStationCode1, topicName))
-
 @main def singleDeploySensor01(): Unit =
   val pluvCode = "esp-001"
-  val zoneCode = "zone-0-0"
+//  val zoneCode = "zone-0-0"
+  val zoneCode = zoneCode1
   startup(port = 8081)(Deploy.pluviometer(
     Pluviometer(
       pluvCode = pluvCode,
@@ -54,7 +55,7 @@ private var topicName: String = "GUIChannel"
   startup(port = 8082)(Deploy.pluviometer(
     Pluviometer(
       pluvCode = pluvCode,
-      zoneCode = "zone-01",
+      zoneCode = zoneCode1,
       Position(0, 0),
       waterLevel = 0,
       PluviometerNotAlarm()
