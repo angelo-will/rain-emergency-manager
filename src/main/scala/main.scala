@@ -1,45 +1,17 @@
 import akka.actor.typed.{ActorRef, Behavior}
 import akka.actor.typed.pubsub.{PubSub, Topic}
-import akka.actor.typed.receptionist.{Receptionist, ServiceKey}
 import akka.actor.typed.scaladsl.Behaviors
 import message.Message
-import utils.{seeds, startup}
-import zone.ZoneActor
-import pluviometer.PluviometerActor
+import utils.startup
 import firestastion.FireStationActor
-import view.ViewActor
 import firestastion.FireStationActor.{FireStationStatus, Managing, Solved}
 import systemelements.SystemElements.*
-import scala.concurrent.duration.{DAYS, FiniteDuration}
 import scala.util.Random
-
+import Deploy.*
 
 private var fireStationCode1: String = "firestation-1"
 private var zoneCode1: String = "zone-1"
 private var topicName: String = "GUIChannel"
-
-object Deploy:
-  def zone(zone: Zone, zoneActorName: String): Behavior[Message] =
-    deploy(ZoneActor(zone))(zoneActorName)
-
-  def pluviometer(pluviometer: Pluviometer, pluviometerActorName: String): Behavior[Message] =
-    deploy(PluviometerActor(pluviometer))(pluviometerActorName)
-
-  def fireStation(zoneCode: String, fireStationCode: String, PubSubChannelName: String): Behavior[Message] =
-    deploy(FireStationActor(
-      fireStationCode,
-      fireStationCode,
-      zoneCode,
-      PubSubChannelName
-    ))(s"actor-$fireStationCode")
-
-  def view(fsCodes: Seq[String]): Behavior[Message] =
-    deploy(ViewActor(fsCodes))("actor-view")
-
-  private def deploy(behavior: Behavior[Message])(actorName: String): Behavior[Message] = Behaviors.setup { ctx =>
-    ctx.spawn(behavior, actorName)
-    Behaviors.empty
-  }
 
 // Single start
 
