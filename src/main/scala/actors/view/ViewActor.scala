@@ -54,8 +54,8 @@ case class ViewActor(fsCodes: Seq[String]):
         updateFSZState(fsCode, ZoneOk())
         Behaviors.same
       // Sent by Actors
-      case FireStationStatus(FireStation(fsCode, fireState, zoneClass)) =>
-        updateFSState(fsCode, fireState)
+      case FireStationStatus(FireStation(fsCode, fireStationState, zoneClass)) =>
+        updateFSState(fsCode, fireStationState)
         updateFSZState(fsCode, zoneClass.zoneState)
         if zoneClass.zoneState == ZoneAlarm() then println("Received Alarm")
         Behaviors.same
@@ -68,20 +68,18 @@ case class ViewActor(fsCodes: Seq[String]):
     }
 
   private def updateFSState(fsCode: String, fireStationState: FireStationState): Unit =
-    println(fireStationState)
     fireStationState match
-      case FireStationFree() => gui.setFSState(fsCode, FireStationStateGUI.Free)
-      case FireStationBusy() => gui.setFSState(fsCode, FireStationStateGUI.Busy)
-      case s => println(s)
+      case fsState if fsState.equals(FireStationFree()) => gui.setFSState(fsCode, FireStationStateGUI.Free)
+      case fsState if fsState.equals(FireStationBusy()) => gui.setFSState(fsCode, FireStationStateGUI.Busy)
 
   private def updateFSZState(fsCode: String, zoneState: ZoneState): Unit =
     zoneState match
-      case ZoneAlarm() =>
+      case zState if zState.equals(ZoneAlarm()) =>
         gui.setFSZState(fsCode, ZoneStateGUI.Alarm)
         gui.setButtonAction(ViewListenerActor(fsCode, context, INTERVENE), fsCode)
-      case ZoneInManaging() =>
+      case zState if zState.equals(ZoneInManaging()) =>
         gui.setFSZState(fsCode, ZoneStateGUI.Managing)
         gui.setButtonAction(ViewListenerActor(fsCode, context, END_INTERVENTION), fsCode)
-      case ZoneOk() =>
+      case zState if zState.equals(ZoneOk()) =>
         gui.setFSZState(fsCode, ZoneStateGUI.Ok)
         gui.setButtonAction(ViewListenerActor(fsCode, context, WAITING), fsCode)
