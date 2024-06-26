@@ -5,8 +5,8 @@ import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
 import akka.actor.typed.{ActorRef, Behavior}
 import firestastion.FireStationActor.AdapterMessageForConnection
 import message.Message
-import systemelements.SystemElements.FireStationState.{Busy, Free}
-import systemelements.SystemElements.{FireStation, FireStationState, ZoneState}
+import systemelements.SystemElements.{FireStation, FireStationBusy, FireStationFree, FireStationState}
+import systemelements.SystemElements.{ZoneAlarm, ZoneState}
 import zone.ZoneActor
 import zone.ZoneActor.ZoneStatus
 
@@ -37,7 +37,7 @@ object FireStationActor:
     new FireStationActor(name, fireStationCode, zoneCode, PubSubChannelName).starting()
 
 private case class FireStationActor(name: String, fireStationCode: String, zoneCode: String, PubSubChannelName: String):
-  
+
   import FireStationActor.{Managing, Solved, FindZone, SendGetStatus, FireStationStatus}
   import scala.concurrent.duration.FiniteDuration
   import akka.actor.typed.pubsub.Topic
@@ -47,7 +47,7 @@ private case class FireStationActor(name: String, fireStationCode: String, zoneC
   private val updateGUIConnectedFrequency = FiniteDuration(10, "second")
   private val askZoneStatus = FiniteDuration(10, "second")
   private var lastZoneState: Option[ZoneState] = None
-  private var fireState = Free
+  private var fireState: FireStationState = FireStationFree()
 
   private var zoneRef: Option[ActorRef[Message]] = None
 
@@ -64,7 +64,7 @@ private case class FireStationActor(name: String, fireStationCode: String, zoneC
           ctx.log.info(s"Timer tick, i'm trying to connect to zone $zoneCode")
           ctx.system.receptionist ! Receptionist.Subscribe(zoneServiceKey, ctx.messageAdapter[Receptionist.Listing](AdapterMessageForConnection.apply))
           Behaviors.same
-        case AdapterMessageForConnection(zoneServiceKey.Listing(l))  =>
+        case AdapterMessageForConnection(zoneServiceKey.Listing(l)) =>
           if (l.nonEmpty) {
             // found the zone, move to work
             ctx.log.info(s"Found $zoneCode, now start normal operations")
@@ -84,17 +84,17 @@ private case class FireStationActor(name: String, fireStationCode: String, zoneC
       Behaviors.receivePartial {
         requestZoneStatus(Behaviors.same)
           .orElse(publishZoneStatus(Behaviors.same, topic, true))
-//        case SendGetStatus(zoneRef) =>
-//          zoneRef ! ZoneActor.GetZoneStatus(ctx.self)
-//          Behaviors.same
-//        case ZoneStatus(zoneClass, zoneRef) =>
-//          //send message to gui using pub/sub
-//          topic ! Topic.publish(
-//            FireStationStatus(FireStation(fireStationCode, fireState, zoneClass))
-//          )
-//          zoneClass.zoneState match
-//            case ZoneState.Alarm => inAlarm(zoneRef)
-//            case _ => Behaviors.same
+        //        case SendGetStatus(zoneRef) =>
+        //          zoneRef ! ZoneActor.GetZoneStatus(ctx.self)
+        //          Behaviors.same
+        //        case ZoneStatus(zoneClass, zoneRef) =>
+        //          //send message to gui using pub/sub
+        //          topic ! Topic.publish(
+        //            FireStationStatus(FireStation(fireStationCode, fireState, zoneClass))
+        //          )
+        //          zoneClass.zoneState match
+        //            case ZoneState.Alarm => inAlarm(zoneRef)
+        //            case _ => Behaviors.same
       }
     }
   }
@@ -113,35 +113,35 @@ private case class FireStationActor(name: String, fireStationCode: String, zoneC
             case (ctx, Managing(stationCode)) =>
               if stationCode equals fireStationCode then
                 zoneRef ! ZoneActor.UnderManagement(ctx.self)
-                fireState = Busy
+                fireState = FireStationBusy()
               Behaviors.same
             case (ctx, Solved(stationCode)) =>
               if stationCode equals fireStationCode then
                 zoneRef ! ZoneActor.Solved(ctx.self)
-                fireState = Free
+                fireState = FireStationFree()
               timers.cancelAll()
               operating(zoneRef)
           }
       }
-//      Behaviors.receiveMessagePartial {
-//        case SendGetStatus(zoneRef) =>
-//          zoneRef ! ZoneActor.GetZoneStatus(ctx.self)
-//          Behaviors.same
-//        case ZoneActor.ZoneStatus(zoneClass, zoneRef) =>
-//          //send message to gui using pub/sub
-//          topic ! Topic.publish(
-//            FireStationStatus(FireStation(fireStationCode, fireState, zoneClass))
-//          )
-//          Behaviors.same
-//        case Managing() =>
-//          zoneRef ! ZoneActor.UnderManagement(ctx.self)
-//          fireState = Busy
-//          Behaviors.same
-//        case Solved() =>
-//          zoneRef ! ZoneActor.Solved(ctx.self)
-//          fireState = Free
-//          operating(zoneRef)
-//      }
+      //      Behaviors.receiveMessagePartial {
+      //        case SendGetStatus(zoneRef) =>
+      //          zoneRef ! ZoneActor.GetZoneStatus(ctx.self)
+      //          Behaviors.same
+      //        case ZoneActor.ZoneStatus(zoneClass, zoneRef) =>
+      //          //send message to gui using pub/sub
+      //          topic ! Topic.publish(
+      //            FireStationStatus(FireStation(fireStationCode, fireState, zoneClass))
+      //          )
+      //          Behaviors.same
+      //        case Managing() =>
+      //          zoneRef ! ZoneActor.UnderManagement(ctx.self)
+      //          fireState = Busy
+      //          Behaviors.same
+      //        case Solved() =>
+      //          zoneRef ! ZoneActor.Solved(ctx.self)
+      //          fireState = Free
+      //          operating(zoneRef)
+      //      }
     }
   }
 
@@ -162,7 +162,7 @@ private case class FireStationActor(name: String, fireStationCode: String, zoneC
         FireStationStatus(FireStation(fireStationCode, fireState, zoneClass))
       )
       zoneClass.zoneState match
-        case ZoneState.Alarm =>
+        case ZoneAlarm() =>
           ctx.log.info(s"Going into Alarm")
           if goIntoAlarm then inAlarm(zoneRef) else behaviour
         case _ => behaviour

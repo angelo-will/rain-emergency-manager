@@ -4,16 +4,19 @@ import akka.actor.typed.receptionist.{Receptionist, ServiceKey}
 import akka.actor.typed.scaladsl.Behaviors
 import message.Message
 import utils.{seeds, startup}
+import zone.ZoneActor
 import pluviometer.PluviometerActor
 import firestastion.FireStationActor
-import firestastion.FireStationActor.{FireStationStatus, Managing, Solved}
-import zone.ZoneActor
-import systemelements.SystemElements.*
-//import systemelements.SystemElements.{PluviometerAlarm, PluviometerNotAlarm}
 import view.ViewActor
-
+import firestastion.FireStationActor.{FireStationStatus, Managing, Solved}
+import systemelements.SystemElements.*
 import scala.concurrent.duration.{DAYS, FiniteDuration}
 import scala.util.Random
+
+
+private var fireStationCode1: String = "firestation-1"
+private var zoneCode1: String = "zone-1"
+private var topicName: String = "GUIChannel"
 
 object Deploy:
   def zone(zone: Zone, zoneActorName: String): Behavior[Message] =
@@ -47,7 +50,7 @@ object Deploy:
   startup(port = 2551)(Deploy.zone(
     Zone(
       zoneCode,
-      ZoneState.Ok,
+      ZoneOk(),
       pluviometers = Map(),
       maxPluviometersPerZone = 3,
       maxWaterLevel = 200,
@@ -55,10 +58,10 @@ object Deploy:
       col = 0,
       width = 200,
       height = 200
-    ), "aaa"))
+    ), s"actor-$zoneCode"))
 
 @main def singleDeployFireStation01(): Unit =
-  startup(port = 8090)(Deploy.fireStation("zone-01", "firestation-01", "GUIChannel"))
+  startup(port = 8090)(Deploy.fireStation(zoneCode1, fireStationCode1, topicName))
 
 @main def singleDeploySensor01(): Unit =
   val pluvCode = "esp-001"
@@ -108,12 +111,12 @@ object TestFirestation:
     Behaviors.receiveMessagePartial {
       case FireStationStatus(firestation) =>
         firestation.zone.zoneState match
-          case ZoneState.Ok => ctx.log.info("Firestation says everything is ok"); Behaviors.same
-          case ZoneState.Alarm =>
+          case ZoneOk() => ctx.log.info("Firestation says everything is ok"); Behaviors.same
+          case ZoneAlarm() =>
             ctx.log.info("Firestation says everything there's an alarm")
             topic ! Topic.publish(Managing("firestation-01"))
             Behaviors.same
-          case ZoneState.InManaging =>
+          case ZoneInManaging() =>
             ctx.log.info("Firestation says it's managing the alarm")
             topic ! Topic.publish(Solved("firestation-01"))
             Behaviors.same
@@ -140,7 +143,7 @@ object Main extends App:
     println(s"creating zone-$x-$y with index")
     Zone(
       s"zone-$x-$y",
-      ZoneState.Ok,
+      ZoneOk(),
       pluviometers = Map(),
       maxPluviometersPerZone,
       maxWaterLevel,
@@ -186,5 +189,6 @@ object Main extends App:
 
 // Deploy view
 @main def deployView(): Unit =
-  val codes = Seq("fs-01", "fs-02", "fs-03", "fs-04")
+  //  val codes = Seq("fs-01", "fs-02", "fs-03", "fs-04")
+  val codes = Seq(fireStationCode1)
   startup(port = 8004)(Deploy.view(codes))

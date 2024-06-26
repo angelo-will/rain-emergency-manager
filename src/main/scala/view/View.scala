@@ -53,7 +53,7 @@ case class FireStationStateComponent(fsCode: String) extends BoxPanel(Orientatio
 
   def setPluvQuantity(quantity: Int): Unit = sensors.text = "" + quantity
 
-  def addButtonListener(listener: Action): Unit =
+  def setButtonAction(listener: Action): Unit =
     button.action = listener
 
   private def setZoneState(state: String): Unit = zoneState.text = state
@@ -69,7 +69,7 @@ case class FireStationGUI(fireStationsCodes: Seq[String]) extends SimpleSwingApp
   // Create a container to hold multiple frames
   private val framesContainer = new BoxPanel(Orientation.Vertical)
   private val panels: mutable.Seq[Component] = mutable.Seq()
-  private val fireStations: mutable.Map[String, FireStationStateComponent] = mutable.Map()
+  val fireStations: mutable.Map[String, FireStationStateComponent] = mutable.Map()
 
   private val mainPanel = new BoxPanel(Orientation.Vertical) {
     contents += new Label("Stato delle caserma")
@@ -83,12 +83,10 @@ case class FireStationGUI(fireStationsCodes: Seq[String]) extends SimpleSwingApp
     this.repaint()
   }
 
-  def addButtonListener(listener: Action, fsCode: String): Unit =
+  def setButtonAction(listener: Action, fsCode: String): Unit =
     val fsComponent = fireStations(fsCode)
     println(s"Add listener to FSComponent ${fsComponent.fsCode}")
-    fsComponent.addButtonListener(listener)
-    fsComponent.revalidate()
-    fsComponent.repaint()
+    fsComponent.setButtonAction(listener)
 
   def setFSZState(fSCode: String, zoneStateGUI: ZoneStateGUI): Unit =
     fireStations(fSCode).setZoneState(zoneStateGUI)
@@ -111,6 +109,6 @@ case class FireStationGUI(fireStationsCodes: Seq[String]) extends SimpleSwingApp
   val codes = Seq("fs-01", "fs-02", "fs-03", "fs-04")
   val gui = FireStationGUI(codes)
   for fs <- codes do
-    gui.addButtonListener(ViewListenerActor(fs), fs)
+    gui.setButtonAction(ViewListenerActor(fs), fs)
   gui.main(Array())
 
