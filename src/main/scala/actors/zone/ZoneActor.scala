@@ -39,7 +39,7 @@ private case class ZoneActor():
   import PluviometerActor.{Alarm, UnsetAlarm, PluviometerTryRegister, PluviometerStatus}
   import akka.actor.typed.receptionist.Receptionist
 
-  private val pluviometersRefs: mutable.Map[ActorRef[Message], Boolean] = mutable.Map()
+  private val pluviometersRefs: mutable.Set[ActorRef[Message]] = mutable.Set()
 
   private def creating(zone: Zone): Behavior[Message] = Behaviors.setup { ctx =>
     ctx.system.receptionist ! Receptionist.Register(ServiceKey[Message](zone.zoneCode), ctx.self)
@@ -49,18 +49,16 @@ private case class ZoneActor():
 
   private def working(zone: Zone): Behavior[Message] =
     Behaviors.receivePartial {
-      pluvTryRegister(zone)
+      pluvTryRegister(zone, working)
         .orElse(getZoneStatusHandler(zone, working))
-        .orElse(memberExited())
+        .orElse(memberExited(zone,working))
         .orElse {
           case (ctx, PluviometerStatus(pluv, pluvRef)) =>
             ctx.log.info(s"Received pluviometer: $pluv")
             val newPluviometers = zone.pluviometers + ((pluv.pluvCode, pluv))
-            pluviometersRefs(pluvRef) = pluv.waterLevel >= zone.maxWaterLevel
-            if isZoneInAlarm2(zone) then
+            if isZoneInAlarm(zone) then
               pluvRef ! PluviometerActor.Alarm(ctx.self)
-              for ((pluvRef, _) <- pluviometersRefs)
-                pluviometersRefs(pluvRef) = true
+
               inAlarm(zone.copy(zoneState = ZoneOk(), pluviometers = newPluviometers))
             else
               working(zone.copy(zoneState = ZoneOk(), pluviometers = newPluviometers))
@@ -68,13 +66,11 @@ private case class ZoneActor():
     }
 
   private def pluvStatusUpdates(zone: Zone, behavior: Zone => Behavior[Message]): PartialFunction[(ActorContext[Message], Message), Behavior[Message]] =
-    case (ctx, PluviometerStatus(pluv, pluvRef)) =>
-      ctx.log.info(s"Received pluviometer: $pluv")
-      val newPluviometers = zone.pluviometers + ((pluv.pluvCode, pluv.copy(pluviometerState = PluviometerAlarm())))
+    case (ctx, PluviometerStatus(pluviometer, pluvRef)) =>
+      ctx.log.info(s"Received pluviometer: $pluviometer")
+      val newPluviometers = zone.pluviometers + ((pluviometer.pluvCode, pluviometer.copy(pluviometerState = PluviometerAlarm())))
       zone.zoneState match
         case ZoneAlarm() | ZoneInManaging() =>
-          for ((pluvRef, _) <- pluviometersRefs)
-            pluviometersRefs(pluvRef) = true
           pluvRef ! PluviometerActor.Alarm(ctx.self)
           behavior(zone.copy(pluviometers = newPluviometers))
         case _ => Behaviors.same
@@ -82,9 +78,9 @@ private case class ZoneActor():
 
   private def inAlarm(zone: Zone): Behavior[Message] =
     Behaviors.receivePartial {
-      pluvTryRegister(zone)
+      pluvTryRegister(zone, inAlarm)
         .orElse(pluvStatusUpdates(zone, inAlarm))
-        .orElse(memberExited())
+        .orElse(memberExited(zone, inAlarm))
         .orElse(getZoneStatusHandler(zone, inAlarm))
         .orElse {
           case (ctx, UnderManagement(fireSRef)) => underManagement(zone.copy(zoneState = ZoneInManaging()))
@@ -93,9 +89,9 @@ private case class ZoneActor():
 
   private def underManagement(zone: Zone): Behavior[Message] =
     Behaviors.receivePartial {
-      pluvTryRegister(zone)
+      pluvTryRegister(zone, underManagement)
         .orElse(pluvStatusUpdates(zone, underManagement))
-        .orElse(memberExited())
+        .orElse(memberExited(zone, underManagement))
         .orElse(getZoneStatusHandler(zone, underManagement))
         .orElse {
           case (ctx, Solved(fireSRef)) =>
@@ -105,16 +101,17 @@ private case class ZoneActor():
         }
     }
 
-  private def pluvTryRegister(zone: Zone): PartialFunction[(ActorContext[Message], Message), Behavior[Message]] =
+  private def pluvTryRegister(zone: Zone, behavior: Zone => Behavior[Message]): PartialFunction[(ActorContext[Message], Message), Behavior[Message]] =
     case (ctx, PluviometerTryRegister(pluviometer, actorToRegister)) =>
       if pluviometersRefs.size < zone.maxPluviometersPerZone then
         ctx.log.info(s"New pluv connected with code ${pluviometer.pluvCode}")
         ctx.log.info(s"New pluv connected with ${actorToRegister.path.address}")
-        pluviometersRefs(actorToRegister) = false
+        pluviometersRefs.add(actorToRegister)
         actorToRegister ! ElementConnectedAck(ctx.self)
+        behavior(zone.copy(pluviometers = zone.pluviometers + ((pluviometer.pluvCode, pluviometer))))
       else
         ctx.log.info(s"Ricevuto messaggio di registrazione ma ci sono sià ${zone.maxPluviometersPerZone} registrati")
-      Behaviors.same
+        behavior(zone)
 
   private def getZoneStatusHandler(zone: Zone, behavior: Zone => Behavior[Message]): PartialFunction[(ActorContext[Message], Message), Behavior[Message]] =
     case (ctx, GetZoneStatus(replyTo)) =>
@@ -123,10 +120,10 @@ private case class ZoneActor():
       behavior(zone)
 
 
-  private def memberExited(): PartialFunction[(ActorContext[Message], Message), Behavior[Message]] =
+  private def memberExited(zone: Zone, behavior: Zone => Behavior[Message]): PartialFunction[(ActorContext[Message], Message), Behavior[Message]] =
     case (ctx, MemberExitedAdapter(event)) =>
       ctx.log.info(s"Received MemberExitedAdapter, ${event.member.address} is exited")
-      val actorRefToRemove = pluviometersRefs.keys.find(_.path.address == event.member.address)
+      val actorRefToRemove = pluviometersRefs.find(_.path.address == event.member.address)
       if actorRefToRemove.isDefined then pluviometersRefs.remove(actorRefToRemove.get)
       printPluvState(ctx)
       Behaviors.same
@@ -145,20 +142,14 @@ private case class ZoneActor():
       }
     }
 
-  private def resetAlarm(ctx: ActorContext[Message]) =
-    for ((pluvRef, _) <- pluviometersRefs)
+  private def resetAlarm(ctx: ActorContext[Message]): Unit =
+    for (pluvRef <- pluviometersRefs)
       pluvRef ! UnsetAlarm(ctx.self)
-      pluviometersRefs(pluvRef) = false
 
-  private def isZoneInAlarm2(zone: Zone) =
+  private def isZoneInAlarm(zone: Zone) =
     zone.pluviometers.foldLeft(0) {
       case (count, (_, p)) => if p.waterLevel >= zone.maxWaterLevel then count + 1 else count
     } >= zone.pluviometers.size
 
-  private def isZoneInAlarm =
-    pluviometersRefs.foldLeft(0) {
-      case (count, (_, value)) => if (value) count + 1 else count
-    } >= pluviometersRefs.size
-  //    } >= (pluviometers.size / 2)
 
-  private def printPluvState(ctx: ActorContext[Message]) = ctx.log.info(s"pluviometers state: $pluviometersRefs")
+  private def printPluvState(ctx: ActorContext[Message]): Unit = ctx.log.info(s"pluviometers state: $pluviometersRefs")
