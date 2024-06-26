@@ -54,12 +54,13 @@ private case class ZoneActor():
         .orElse(memberExited(zone,working))
         .orElse {
           case (ctx, PluviometerStatus(pluv, pluvRef)) =>
+            ctx.log.info(s"Inside working, zone: $zone")
             ctx.log.info(s"Received pluviometer: $pluv")
             val newPluviometers = zone.pluviometers + ((pluv.pluvCode, pluv))
             if isZoneInAlarm(zone) then
               pluvRef ! PluviometerActor.Alarm(ctx.self)
 
-              inAlarm(zone.copy(zoneState = ZoneOk(), pluviometers = newPluviometers))
+              inAlarm(zone.copy(zoneState = ZoneAlarm(), pluviometers = newPluviometers))
             else
               working(zone.copy(zoneState = ZoneOk(), pluviometers = newPluviometers))
         }
@@ -67,6 +68,8 @@ private case class ZoneActor():
 
   private def pluvStatusUpdates(zone: Zone, behavior: Zone => Behavior[Message]): PartialFunction[(ActorContext[Message], Message), Behavior[Message]] =
     case (ctx, PluviometerStatus(pluviometer, pluvRef)) =>
+      ctx.log.info(s"Inside $behavior")
+      ctx.log.info(s"zone $zone")
       ctx.log.info(s"Received pluviometer: $pluviometer")
       val newPluviometers = zone.pluviometers + ((pluviometer.pluvCode, pluviometer.copy(pluviometerState = PluviometerAlarm())))
       zone.zoneState match
@@ -116,6 +119,7 @@ private case class ZoneActor():
   private def getZoneStatusHandler(zone: Zone, behavior: Zone => Behavior[Message]): PartialFunction[(ActorContext[Message], Message), Behavior[Message]] =
     case (ctx, GetZoneStatus(replyTo)) =>
       ctx.log.info(s"Received zone status request from ${replyTo.path}")
+      ctx.log.info(s"i'm sending zone: ${zone}")
       replyTo ! ZoneStatus(zone, ctx.self);
       behavior(zone)
 
