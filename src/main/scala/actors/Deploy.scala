@@ -1,11 +1,13 @@
+package actors
+
+import actors.firestastion.FireStationActor
+import actors.pluviometer.PluviometerActor
+import actors.view.ViewActor
+import actors.zone.ZoneActor
 import akka.actor.typed.Behavior
 import akka.actor.typed.scaladsl.Behaviors
-import firestastion.FireStationActor
 import message.Message
-import pluviometer.PluviometerActor
 import systemelements.SystemElements.{Pluviometer, Zone}
-import view.ViewActor
-import zone.ZoneActor
 
 object Deploy:
   def zone(zone: Zone, zoneActorName: String): Behavior[Message] =

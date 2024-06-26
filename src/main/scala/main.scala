@@ -1,13 +1,15 @@
+import actors.Deploy
 import akka.actor.typed.{ActorRef, Behavior}
 import akka.actor.typed.pubsub.{PubSub, Topic}
 import akka.actor.typed.scaladsl.Behaviors
 import message.Message
 import utils.startup
-import firestastion.FireStationActor
-import firestastion.FireStationActor.{FireStationStatus, Managing, Solved}
+import actors.firestastion.FireStationActor.{FireStationStatus, Managing, Solved}
 import systemelements.SystemElements.*
+
 import scala.util.Random
-import Deploy.*
+import actors.Deploy.*
+import actors.firestastion.FireStationActor
 
 private var fireStationCode1: String = "firestation-1"
 private var zoneCode1: String = "zone-1"

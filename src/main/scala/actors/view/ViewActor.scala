@@ -1,11 +1,11 @@
-package view
+package actors.view
 
-
+import actors.firestastion.FireStationActor.FireStationStatus
+import actors.view.ViewListenerActor.ActionCommand.{END_INTERVENTION, INTERVENE, WAITING}
 import akka.actor.typed.Behavior
-import firestastion.FireStationActor.FireStationStatus
 import message.Message
 import systemelements.SystemElements.*
-import view.ViewListenerActor.ActionCommand.{END_INTERVENTION, INTERVENE, WAITING}
+import view.FireStationGUI
 
 object ViewActor:
   sealed trait Command extends Message
@@ -16,17 +16,14 @@ object ViewActor:
 
 case class ViewActor(fsCodes: Seq[String]):
 
-  import akka.actor.typed.pubsub.{Topic, PubSub}
+  import actors.firestastion.FireStationActor
+  import akka.actor.typed.pubsub.{PubSub, Topic}
   import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
   import akka.actor.typed.{ActorRef, Behavior}
+  import systemelements.SystemElements.FireStationState
+  import view.FireStationGUI.{FireStationStateGUI, ZoneStateGUI}
 
   import scala.collection.mutable
-
-  import systemelements.SystemElements.FireStationState
-
-  import firestastion.FireStationActor
-
-  import view.FireStationGUI.{FireStationStateGUI, ZoneStateGUI}
 
   private val fireStations = mutable.Map[String, ActorRef[Message]]()
   private val gui = FireStationGUI(fsCodes)

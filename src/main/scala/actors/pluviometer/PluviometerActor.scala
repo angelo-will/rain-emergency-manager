@@ -1,4 +1,4 @@
-package pluviometer
+package actors.pluviometer
 
 import akka.actor.typed.receptionist.{Receptionist, ServiceKey}
 import akka.actor.typed.scaladsl.*
@@ -33,8 +33,7 @@ object PluviometerActor:
 private case class PluviometerActor(pluviometer: Pluviometer):
 
   import PluviometerActor.*
-  import zone.*
-  import ZoneActor.ElementConnectedAck
+  import actors.zone.ZoneActor.ElementConnectedAck
   import message.Message
   import systemelements.SystemElements.PluviometerState
 

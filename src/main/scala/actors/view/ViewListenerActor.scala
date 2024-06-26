@@ -1,10 +1,10 @@
-package view
+package actors.view
 
+import actors.firestastion.FireStationActor
+import actors.firestastion.FireStationActor.FireStationStatus
 import akka.actor.typed.ActorRef
 import akka.actor.typed.pubsub.{PubSub, Topic}
 import akka.actor.typed.scaladsl.ActorContext
-import firestastion.FireStationActor
-import firestastion.FireStationActor.FireStationStatus
 import message.Message
 import systemelements.SystemElements.{FireStation, FireStationState, Zone, ZoneState}
 

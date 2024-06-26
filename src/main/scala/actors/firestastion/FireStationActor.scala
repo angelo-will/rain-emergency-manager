@@ -1,14 +1,13 @@
-package firestastion
+package actors.firestastion
 
+import actors.firestastion.FireStationActor.AdapterMessageForConnection
+import actors.zone.ZoneActor
 import akka.actor.typed.receptionist.{Receptionist, ServiceKey}
 import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
 import akka.actor.typed.{ActorRef, Behavior}
-import firestastion.FireStationActor.AdapterMessageForConnection
 import message.Message
 import systemelements.SystemElements.{FireStation, FireStationBusy, FireStationFree, FireStationState}
 import systemelements.SystemElements.{ZoneAlarm, ZoneState}
-import zone.ZoneActor
-import zone.ZoneActor.ZoneStatus
 
 object FireStationActor:
 
@@ -40,6 +39,7 @@ private case class FireStationActor(name: String, fireStationCode: String, zoneC
 
   import FireStationActor.{Managing, Solved, FindZone, SendGetStatus, FireStationStatus}
   import scala.concurrent.duration.FiniteDuration
+  import actors.zone.ZoneActor.ZoneStatus
   import akka.actor.typed.pubsub.Topic
   import akka.actor.typed.pubsub.PubSub
 

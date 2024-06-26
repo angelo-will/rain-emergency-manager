@@ -1,4 +1,4 @@
-package zone
+package actors.zone
 
 import akka.actor.typed.{ActorRef, Behavior}
 import akka.cluster.ClusterEvent.MemberExited
@@ -35,7 +35,7 @@ private case class ZoneActor():
   import akka.actor.typed.receptionist.ServiceKey
   import scala.collection.mutable
   import ZoneActor.*
-  import pluviometer.PluviometerActor
+  import actors.pluviometer.PluviometerActor
   import PluviometerActor.{Alarm, UnsetAlarm, PluviometerTryRegister, PluviometerStatus}
   import akka.actor.typed.receptionist.Receptionist
 

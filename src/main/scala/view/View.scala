@@ -1,5 +1,7 @@
 package view
 
+import actors.view.ViewListenerActor
+
 import scala.collection.mutable
 import scala.swing.*
 import scala.swing.event.ButtonClicked
