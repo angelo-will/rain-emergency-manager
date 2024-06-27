@@ -10,11 +10,11 @@ import view.FireStationGUI
 object ViewActor:
   sealed trait Command extends Message
 
-  def apply(fsCodes: Seq[String]): Behavior[Message] =
-    new ViewActor(fsCodes).start()
+  def apply(fsCodes: Seq[String], topicName: String): Behavior[Message] =
+    new ViewActor(fsCodes, topicName).start()
 
 
-case class ViewActor(fsCodes: Seq[String]):
+case class ViewActor(fsCodes: Seq[String], topicName: String):
 
   import actors.firestastion.FireStationActor
   import akka.actor.typed.pubsub.{PubSub, Topic}
@@ -25,7 +25,7 @@ case class ViewActor(fsCodes: Seq[String]):
 
   import scala.collection.mutable
 
-  private val fireStations = mutable.Map[String, ActorRef[Message]]()
+//  private val fireStations = mutable.Map[String, ActorRef[Message]]()
   private val gui = FireStationGUI(fsCodes)
   private var context: ActorContext[Message] = _
 
@@ -33,13 +33,13 @@ case class ViewActor(fsCodes: Seq[String]):
     ctx.spawn(listenerFireStation(ctx.self), s"listener-fs")
     context = ctx
     for fs <- fsCodes do
-      gui.setButtonAction(ViewListenerActor(fs, ctx, INTERVENE), fs)
+      gui.setButtonAction(ViewListenerActor(fs, topicName, ctx, INTERVENE), fs)
     gui.main(Array.empty)
     debugBehav()
   }
 
   private def listenerFireStation(forwardActor: ActorRef[Message]) = Behaviors.setup { ctx =>
-    val topic: ActorRef[Topic.Command[Message]] = PubSub(ctx.system).topic[Message]("GUIChannel")
+    val topic: ActorRef[Topic.Command[Message]] = PubSub(ctx.system).topic[Message](topicName)
     topic ! Topic.subscribe(ctx.self)
     Behaviors.receiveMessagePartial {
       // Sent by Actors
@@ -73,10 +73,10 @@ case class ViewActor(fsCodes: Seq[String]):
     zoneState match
       case zState if zState.equals(ZoneAlarm()) =>
         gui.setFSZState(fsCode, ZoneStateGUI.Alarm)
-        gui.setButtonAction(ViewListenerActor(fsCode, context, INTERVENE), fsCode)
+        gui.setButtonAction(ViewListenerActor(fsCode, topicName, context, INTERVENE), fsCode)
       case zState if zState.equals(ZoneInManaging()) =>
         gui.setFSZState(fsCode, ZoneStateGUI.Managing)
-        gui.setButtonAction(ViewListenerActor(fsCode, context, END_INTERVENTION), fsCode)
+        gui.setButtonAction(ViewListenerActor(fsCode, topicName, context, END_INTERVENTION), fsCode)
       case zState if zState.equals(ZoneOk()) =>
         gui.setFSZState(fsCode, ZoneStateGUI.Ok)
-        gui.setButtonAction(ViewListenerActor(fsCode, context, WAITING), fsCode)
+        gui.setButtonAction(ViewListenerActor(fsCode, topicName, context, WAITING), fsCode)

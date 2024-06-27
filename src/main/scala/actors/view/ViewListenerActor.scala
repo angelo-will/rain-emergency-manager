@@ -23,7 +23,7 @@ object ViewListenerActor:
       println(s"INTERVIENE la caserma:$fsCode")
     }
 
-  def apply(fsCode: String, ctx: ActorContext[Message], actionCommand: ActionCommand): Action =
+  def apply(fsCode: String, topicName: String, ctx: ActorContext[Message], actionCommand: ActionCommand): Action =
     actionCommand match
       case ActionCommand.WAITING =>
         Action("IN ATTESA") {
@@ -52,7 +52,7 @@ object ViewListenerActor:
           println(s"Ora interviene la caserma:$fsCode")
           // Send message to ViewActor or FireStationActor
           // To say that the fire station is intervening
-          val topic: ActorRef[Topic.Command[Message]] = PubSub(ctx.system).topic[Message]("GUIChannel")
+          val topic: ActorRef[Topic.Command[Message]] = PubSub(ctx.system).topic[Message](topicName)
           topic ! Topic.publish(FireStationActor.Managing(fsCode))
         }
       case ActionCommand.END_INTERVENTION =>
@@ -63,6 +63,6 @@ object ViewListenerActor:
           // The fire station is already intervening and when the intervention ends
           // it will send a message to the ViewActor or FireStationActor
           // The zone is in a InManaging state
-          val topic: ActorRef[Topic.Command[Message]] = PubSub(ctx.system).topic[Message]("GUIChannel")
+          val topic: ActorRef[Topic.Command[Message]] = PubSub(ctx.system).topic[Message](topicName)
           topic ! Topic.publish(FireStationActor.Solved(fsCode))
         }

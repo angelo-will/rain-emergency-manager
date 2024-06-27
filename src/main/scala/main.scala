@@ -166,4 +166,4 @@ object Main extends App:
 @main def deployView(): Unit =
   //  val codes = Seq("fs-01", "fs-02", "fs-03", "fs-04")
   val codes = Seq(fireStationCode1)
-  startup(port = 8004)(Deploy.view(codes))
+  startup(port = 8004)(Deploy.view(codes, topicName))
