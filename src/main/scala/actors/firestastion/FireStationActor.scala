@@ -7,7 +7,7 @@ import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
 import akka.actor.typed.{ActorRef, Behavior}
 import message.Message
 import systemelements.SystemElements.{FireStation, FireStationBusy, FireStationFree, FireStationState}
-import systemelements.SystemElements.{ZoneAlarm, ZoneState}
+import systemelements.SystemElements.ZoneAlarm
 
 object FireStationActor:
 
@@ -46,10 +46,8 @@ private case class FireStationActor(name: String, fireStationCode: String, zoneC
   private val searchingZoneFrequency = FiniteDuration(5, "second")
   private val updateGUIConnectedFrequency = FiniteDuration(1, "second")
   private val askZoneStatus = FiniteDuration(1, "second")
-  private var lastZoneState: Option[ZoneState] = None
   private var fireState: FireStationState = FireStationFree()
 
-  private var zoneRef: Option[ActorRef[Message]] = None
 
   //First thing to do is retrieve the zoneActor reference
   private def starting(): Behavior[Message] = Behaviors.setup { ctx =>
@@ -84,17 +82,6 @@ private case class FireStationActor(name: String, fireStationCode: String, zoneC
       Behaviors.receivePartial {
         requestZoneStatus(Behaviors.same)
           .orElse(publishZoneStatus(Behaviors.same, topic, true))
-        //        case SendGetStatus(zoneRef) =>
-        //          zoneRef ! ZoneActor.GetZoneStatus(ctx.self)
-        //          Behaviors.same
-        //        case ZoneStatus(zoneClass, zoneRef) =>
-        //          //send message to gui using pub/sub
-        //          topic ! Topic.publish(
-        //            FireStationStatus(FireStation(fireStationCode, fireState, zoneClass))
-        //          )
-        //          zoneClass.zoneState match
-        //            case ZoneState.Alarm => inAlarm(zoneRef)
-        //            case _ => Behaviors.same
       }
     }
   }
@@ -125,25 +112,6 @@ private case class FireStationActor(name: String, fireStationCode: String, zoneC
               operating(zoneRef)
           }
       }
-      //      Behaviors.receiveMessagePartial {
-      //        case SendGetStatus(zoneRef) =>
-      //          zoneRef ! ZoneActor.GetZoneStatus(ctx.self)
-      //          Behaviors.same
-      //        case ZoneActor.ZoneStatus(zoneClass, zoneRef) =>
-      //          //send message to gui using pub/sub
-      //          topic ! Topic.publish(
-      //            FireStationStatus(FireStation(fireStationCode, fireState, zoneClass))
-      //          )
-      //          Behaviors.same
-      //        case Managing() =>
-      //          zoneRef ! ZoneActor.UnderManagement(ctx.self)
-      //          fireState = Busy
-      //          Behaviors.same
-      //        case Solved() =>
-      //          zoneRef ! ZoneActor.Solved(ctx.self)
-      //          fireState = Free
-      //          operating(zoneRef)
-      //      }
     }
   }
 
