@@ -156,9 +156,14 @@ private case class ZoneActor():
       pluvRef ! UnsetAlarm(ctx.self)
 
   private def isZoneInAlarm(zone: Zone) =
-    zone.pluviometers.foldLeft(0) {
+    val m = math.ceil(zone.pluviometers.size.toDouble/2.0)
+    val c = zone.pluviometers.foldLeft(0) {
       case (count, (_, p)) => if p.waterLevel >= zone.maxWaterLevel then count + 1 else count
-    } >= math.ceil(zone.pluviometers.size/2)
+    }
+    println(s"ceil :$m")
+    println(s"count :$c")
+    println(s"pluv :${zone.pluviometers.size}")
+    c >= m
 
 
   private def printPluvState(ctx: ActorContext[Message]): Unit = ctx.log.info(s"pluviometers state: $pluviometersRefs")

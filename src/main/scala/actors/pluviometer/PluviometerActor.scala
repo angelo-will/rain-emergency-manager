@@ -38,7 +38,7 @@ private case class PluviometerActor(pluviometer: Pluviometer):
   import systemelements.SystemElements.PluviometerState
 
   private val searchZoneFrequency = FiniteDuration(5000, "milli")
-  private val updateFrequency = FiniteDuration(3, "second")
+  private val updateFrequency = FiniteDuration(10, "second")
 
   private def connectToZone: Behavior[Message] =
     Behaviors.setup { ctx =>
@@ -78,7 +78,9 @@ private case class PluviometerActor(pluviometer: Pluviometer):
       .orElse {
         case (ctx, UnsetAlarm(zoneRef)) =>
           ctx.log.info(s"Received unset alarm to zone, passin to not alarm")
-          notAlarm(pluviometer)
+          val newPluviometer = pluviometer.copy(waterLevel = Random.nextInt(100), pluviometerState = PluviometerNotAlarm())
+          zoneRef ! PluviometerStatus(newPluviometer, ctx.self)
+          notAlarm(newPluviometer)
         case (ctx, msg) =>
           ctx.log.info(s"In alarm received $msg")
           alarm(pluviometer)

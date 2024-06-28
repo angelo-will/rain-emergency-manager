@@ -29,7 +29,7 @@ private var topicName: String = "GUIChannel"
       ZoneOk(),
       pluviometers = Map(),
       maxPluviometersPerZone = 3,
-      maxWaterLevel = 200,
+      maxWaterLevel = 350,
       row = 0,
       col = 0,
       width = 200,
