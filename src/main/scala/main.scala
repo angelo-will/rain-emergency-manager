@@ -10,6 +10,9 @@ import systemelements.SystemElements.*
 import scala.util.Random
 import actors.Deploy.*
 import actors.firestastion.FireStationActor
+import com.fasterxml.jackson.module.scala.deser.overrides.MutableList
+
+import scala.collection.mutable.ArrayBuffer
 
 private var fireStationCode1: String = "firestation-1"
 private var zoneCode1: String = "zone-1"
@@ -44,7 +47,7 @@ private var topicName: String = "GUIChannel"
   startup(port = 8081)(Deploy.pluviometer(
     Pluviometer(
       pluvCode = pluvCode,
-      zoneCode,
+      zoneCode1,
       Position(0, 0),
       waterLevel = 0,
       PluviometerNotAlarm()
@@ -66,7 +69,7 @@ private var topicName: String = "GUIChannel"
   startup(port = 8083)(Deploy.pluviometer(
     Pluviometer(
       pluvCode = pluvCode,
-      zoneCode = "zone-01",
+      zoneCode = zoneCode1,
       Position(0, 0),
       waterLevel = 0,
       PluviometerNotAlarm()
@@ -102,7 +105,7 @@ object Main extends App:
 
   case class City(width: Double, height: Double, columns: Int, rows: Int)
 
-  val city = City(100, 200, 3, 2)
+  val city = City(100, 200, 2, 2)
 
   val maxPluviometersPerZone = 3
   val pluvPerZone = 2
@@ -133,7 +136,7 @@ object Main extends App:
     zone <- zones
   yield
     index += 1
-    startup(port = 8080 + index)(Deploy.zone(zone, s"actor-${zone.zoneCode}"))
+    startup(port = 9999 + index)(Deploy.zone(zone, s"actor-${zone.zoneCode}"))
 
   // Deploy Pluviometers
   index = 0
@@ -144,14 +147,16 @@ object Main extends App:
     index += 1
     val coordX = Random.between(zone.width * zone.col, zone.width * (zone.col + 1)).toInt
     val coordY = Random.between(zone.height * zone.row, zone.height * (zone.row + 1)).toInt
-    startup(port = 8180 + index)(Deploy.pluviometer(
+    startup(port = 10099 + index)(Deploy.pluviometer(
       Pluviometer(
         pluvCode = s"pluviometer-$index",
-        zoneCode = "zone-01",
+        zoneCode = zone.zoneCode,
         Position(0, 0),
         waterLevel = 0,
         PluviometerNotAlarm()
       ), s"actor-pluviometer-$index"))
+
+  val fsCodes = ArrayBuffer.empty[String]
 
   // Deploy Firestations
   index = 0
@@ -159,7 +164,13 @@ object Main extends App:
     zone <- zones
   yield
     index += 1
-//    startup(port = 9000 + index)(Deploy.fireStation(${zone.zoneCode}, firestation-$index))
+    val fsCode = s"firestation-$index"
+    fsCodes += fsCode
+    startup(port = 10199 + index)(Deploy.fireStation(zone.zoneCode, fsCode, topicName))
+
+  //Deploy view
+  startup(port = 10300)(Deploy.view(fsCodes.toSeq, topicName))
+  startup(port = 10301)(Deploy.view(fsCodes.toSeq, topicName))
 
 
 // Deploy view
