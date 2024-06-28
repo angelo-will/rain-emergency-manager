@@ -158,7 +158,7 @@ private case class ZoneActor():
   private def isZoneInAlarm(zone: Zone) =
     zone.pluviometers.foldLeft(0) {
       case (count, (_, p)) => if p.waterLevel >= zone.maxWaterLevel then count + 1 else count
-    } >= zone.pluviometers.size
+    } >= math.ceil(zone.pluviometers.size/2)
 
 
   private def printPluvState(ctx: ActorContext[Message]): Unit = ctx.log.info(s"pluviometers state: $pluviometersRefs")
