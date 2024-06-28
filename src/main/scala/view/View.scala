@@ -11,7 +11,6 @@ object FireStationGUI:
     case Alarm
     case Managing
     case Ok
-    case NotConnected
 
   enum FireStationStateGUI:
     case Busy
@@ -25,9 +24,9 @@ case class FireStationStateComponent(fsCode: String) extends BoxPanel(Orientatio
   import FireStationGUI.FireStationStateGUI
 
   private val sensors = new Label("0")
-  private val zoneState = new Label("In allarme")
-  private val fireStationState = new Label("Libera")
-  private val zoneControlledCode = new Label("non connessa")
+  private val zoneState = new Label("Non Connessa")
+  private val fireStationState = new Label("Non Connessa")
+  private val zoneControlledCode = new Label("Non Connessa")
   private val button = new Button("")
 
   contents += new Label(s"CASERMA $fsCode")
@@ -46,7 +45,6 @@ case class FireStationStateComponent(fsCode: String) extends BoxPanel(Orientatio
       case ZoneStateGUI.Alarm => setZoneState("In allarme")
       case ZoneStateGUI.Managing => setZoneState("In gestione")
       case ZoneStateGUI.Ok => setZoneState("Sicura")
-      case ZoneStateGUI.NotConnected => setZoneState("Non connessa")
 
   def setFState(fireStationState: FireStationStateGUI): Unit =
     fireStationState match
@@ -105,9 +103,8 @@ case class FireStationGUI(fireStationsCodes: Seq[String]) extends SimpleSwingApp
     fireStations(fSCode).setPluvQuantity(quantity)
 
   def top: Frame = new MainFrame {
-    title = "Visualizzazione zona e caserma"
+    title = "Visualizzazione zona e caserme"
     contents = mainPanel
-    //    size = new Dimension(300, 200)
   }
 
 }
