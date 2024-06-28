@@ -15,14 +15,10 @@ private var fireStationCode1: String = "firestation-1"
 private var zoneCode1: String = "zone-1"
 private var topicName: String = "GUIChannel"
 
-// Single start
-@main def singleDeployFireStation01(): Unit =
-  startup(port = 8090)(Deploy.fireStation(zoneCode1, fireStationCode1, topicName))
-
 @main def singleDeployZone01(): Unit =
   val x = 0
   val y = 0
-//  val zoneCode = s"zone-$x-$y"
+  //  val zoneCode = s"zone-$x-$y"
   val zoneCode = zoneCode1
   startup(port = 2551)(Deploy.zone(
     Zone(
@@ -36,6 +32,10 @@ private var topicName: String = "GUIChannel"
       width = 200,
       height = 200
     ), s"actor-$zoneCode"))
+
+// Single start
+@main def singleDeployFireStation01(): Unit =
+  startup(port = 8090)(Deploy.fireStation(zoneCode1, fireStationCode1, topicName))
 
 @main def singleDeploySensor01(): Unit =
   val pluvCode = "esp-001"
@@ -66,11 +66,17 @@ private var topicName: String = "GUIChannel"
   startup(port = 8083)(Deploy.pluviometer(
     Pluviometer(
       pluvCode = pluvCode,
-      zoneCode = "zone-01",
+      zoneCode = zoneCode1,
       Position(0, 0),
       waterLevel = 0,
       PluviometerNotAlarm()
     ), s"actor-pluviometer-$pluvCode"))
+
+// Deploy view
+@main def deployView(): Unit =
+  //  val codes = Seq("fs-01", "fs-02", "fs-03", "fs-04")
+  val codes = Seq(fireStationCode1)
+  startup(port = 8004)(Deploy.view(codes, topicName))
 
 object TestFirestation:
 
@@ -162,8 +168,3 @@ object Main extends App:
 //    startup(port = 9000 + index)(Deploy.fireStation(${zone.zoneCode}, firestation-$index))
 
 
-// Deploy view
-@main def deployView(): Unit =
-  //  val codes = Seq("fs-01", "fs-02", "fs-03", "fs-04")
-  val codes = Seq(fireStationCode1)
-  startup(port = 8004)(Deploy.view(codes, topicName))
