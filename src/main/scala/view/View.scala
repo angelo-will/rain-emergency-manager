@@ -108,11 +108,3 @@ case class FireStationGUI(fireStationsCodes: Seq[String]) extends SimpleSwingApp
   }
 
 }
-
-@main def designGUI(): Unit =
-  val codes = Seq("fs-01", "fs-02", "fs-03", "fs-04")
-  val gui = FireStationGUI(codes)
-  for fs <- codes do
-    gui.setButtonAction(ViewListenerActor(fs), fs)
-  gui.main(Array())
-
