@@ -48,7 +48,6 @@ case class ViewActor(fsCodes: Seq[String], topicName: String):
         updateFSZSensorsQuantityState(fsCode, zoneClass.pluviometers.size)
         updateFSState(fsCode, fireStationState)
         updateFSZState(fsCode, zoneClass.zoneState)
-        if zoneClass.zoneState == ZoneAlarm() then println("Received Alarm")
         Behaviors.same
     }
   }
