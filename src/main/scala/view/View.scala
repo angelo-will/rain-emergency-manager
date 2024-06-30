@@ -2,8 +2,9 @@ package view
 
 import actors.view.ViewListenerActor
 
+import java.awt.CardLayout
 import scala.collection.mutable
-import scala.swing.*
+import scala.swing.{FlowPanel, *}
 import scala.swing.event.ButtonClicked
 
 object FireStationGUI:
@@ -73,7 +74,7 @@ case class FireStationGUI(fireStationsCodes: Seq[String]) extends SimpleSwingApp
   private val panels: mutable.Seq[Component] = mutable.Seq()
   val fireStations: mutable.Map[String, FireStationStateComponent] = mutable.Map()
 
-  private val mainPanel = new BoxPanel(Orientation.Vertical) {
+    private val mainPanel = new FlowPanel() {
     contents += new Label("Stato delle caserma")
     for fs <- fireStationsCodes do
       println("Add new FS panel")
