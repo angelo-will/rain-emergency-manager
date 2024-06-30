@@ -29,7 +29,7 @@ case class FireStationStateComponent(fsCode: String) extends BoxPanel(Orientatio
   private val zoneControlledCode = new Label("Non Connessa")
   private val button = new Button("")
 
-  contents += new Label(s"CASERMA $fsCode")
+  contents += new Label(s"CASERMA ${fsCode.trim.substring(12)}")
   contents += new Label("Zona controllata:")
   contents += zoneControlledCode
   contents += new Label("Sensori:")
@@ -105,6 +105,7 @@ case class FireStationGUI(fireStationsCodes: Seq[String]) extends SimpleSwingApp
   def top: Frame = new MainFrame {
     title = "Visualizzazione zona e caserme"
     contents = mainPanel
+    
   }
 
 }
