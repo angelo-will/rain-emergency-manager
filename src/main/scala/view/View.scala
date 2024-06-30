@@ -40,6 +40,7 @@ case class FireStationStateComponent(fsCode: String) extends BoxPanel(Orientatio
   contents += new Label("Stato caserma")
   contents += fireStationState
   contents += button
+  border = Swing.EmptyBorder(10, 10, 10, 10)
 
   def setZoneState(zoneState: ZoneStateGUI): Unit =
     zoneState match
