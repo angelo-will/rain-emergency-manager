@@ -24,7 +24,6 @@ object ZoneActor:
    */
   case class ElementConnectedAck(zoneRef: ActorRef[Message]) extends Command
 
-  case class MemberExitedAdapter(event: MemberExited) extends Command
 
   def apply(zone: Zone): Behavior[Message] = new ZoneActor().creating(zone)
 
@@ -38,12 +37,13 @@ private case class ZoneActor():
   import actors.pluviometer.PluviometerActor
   import PluviometerActor.{Alarm, UnsetAlarm, PluviometerTryRegister, PluviometerStatus}
   import akka.actor.typed.receptionist.Receptionist
+  import actors.commonbehaviors.MemberEventBehavior
 
   private val pluviometersRefs: mutable.Map[ActorRef[Message], String] = mutable.Map()
 
   private def creating(zone: Zone): Behavior[Message] = Behaviors.setup { ctx =>
     ctx.system.receptionist ! Receptionist.Register(ServiceKey[Message](zone.zoneCode), ctx.self)
-    ctx.spawn(memberEventBehavior(ctx), "Member-event-actor")
+    ctx.spawn(MemberEventBehavior.memberExitBehavior(ctx), "Member-event-actor")
     this.working(zone)
   }
 
@@ -51,7 +51,7 @@ private case class ZoneActor():
     Behaviors.receivePartial {
       pluvTryRegister(zone, working)
         .orElse(getZoneStatusHandler(zone, working))
-        .orElse(memberExited(zone,working))
+        .orElse(memberExited(zone, working))
         .orElse {
           case (ctx, PluviometerStatus(pluv, pluvRef)) =>
             ctx.log.info(s"Inside working, zone: $zone")
@@ -59,9 +59,9 @@ private case class ZoneActor():
             val newPluviometers = zone.pluviometers + ((pluv.pluvCode, pluv))
             if isZoneInAlarm(zone) then
               pluvRef ! PluviometerActor.Alarm(ctx.self)
-
               inAlarm(zone.copy(zoneState = ZoneAlarm(), pluviometers = newPluviometers))
             else
+              pluvRef ! PluviometerActor.UnsetAlarm(ctx.self)
               working(zone.copy(zoneState = ZoneOk(), pluviometers = newPluviometers))
         }
     }
@@ -125,9 +125,9 @@ private case class ZoneActor():
 
 
   private def memberExited(zone: Zone, behavior: Zone => Behavior[Message]): PartialFunction[(ActorContext[Message], Message), Behavior[Message]] =
-    case (ctx, MemberExitedAdapter(event)) =>
-      ctx.log.info(s"Received MemberExitedAdapter, ${event.member.address} is exited")
-      val actorRefToRemove = pluviometersRefs.keys.find(_.path.address == event.member.address)
+    case (ctx, MemberEventBehavior.MemberExit(address)) =>
+      ctx.log.info(s"Received MemberExitedAdapter, $address is exited")
+      val actorRefToRemove = pluviometersRefs.keys.find(_.path.address == address)
       if actorRefToRemove.isDefined then
         val newPluviometers = zone.pluviometers - pluviometersRefs(actorRefToRemove.get)
         pluviometersRefs.remove(actorRefToRemove.get)
@@ -137,26 +137,12 @@ private case class ZoneActor():
         behavior(zone)
 
 
-  private def memberEventBehavior(zoneCtx: ActorContext[Message]) =
-    Behaviors.setup { ctx2 =>
-      Cluster(zoneCtx.system).subscriptions ! Subscribe(
-        ctx2.messageAdapter[MemberExited](MemberExitedAdapter.apply),
-        classOf[MemberExited]
-      )
-      Behaviors.receivePartial {
-        case (memberEventCtx, MemberExitedAdapter(event)) =>
-          memberEventCtx.log.info(s"MemberEventWrapper received with event ${event.member.address}")
-          zoneCtx.self ! MemberExitedAdapter(event)
-          Behaviors.same
-      }
-    }
-
   private def resetAlarm(ctx: ActorContext[Message]): Unit =
-    for ((pluvRef,_) <- pluviometersRefs)
+    for ((pluvRef, _) <- pluviometersRefs)
       pluvRef ! UnsetAlarm(ctx.self)
 
   private def isZoneInAlarm(zone: Zone) =
-    val m = math.ceil(zone.pluviometers.size.toDouble/2.0)
+    val m = math.ceil(zone.pluviometers.size.toDouble / 2.0)
     val c = zone.pluviometers.foldLeft(0) {
       case (count, (_, p)) => if p.waterLevel >= zone.maxWaterLevel then count + 1 else count
     }
