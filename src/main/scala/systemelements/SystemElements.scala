@@ -49,7 +49,6 @@ object SystemElements:
 
   case class FireStation(
                           fireStationCode: String,
-                          fireStationState:
-                          FireStationState,
+                          fireStationState: FireStationState,
                           zone: Zone
                         ) extends Serializable(fireStationState.code)
