@@ -16,13 +16,26 @@ import scala.collection.mutable.ArrayBuffer
 
 private var fireStationCode1: String = "firestation-1"
 private var zoneCode1: String = "zone-1"
+private var zoneCode2: String = "zone-2"
 private var topicName: String = "GUIChannel"
 
 @main def singleDeployZone01(): Unit =
-  val x = 0
-  val y = 0
-  //  val zoneCode = s"zone-$x-$y"
   val zoneCode = zoneCode1
+  startup(port = 2552)(Deploy.zone(
+    Zone(
+      zoneCode,
+      ZoneOk(),
+      pluviometers = Map(),
+      maxPluviometersPerZone = 3,
+      maxWaterLevel = 350,
+      row = 0,
+      col = 0,
+      width = 200,
+      height = 200
+    ), s"actor-$zoneCode"))
+
+@main def singleDeployZone02(): Unit =
+  val zoneCode = zoneCode2
   startup(port = 2551)(Deploy.zone(
     Zone(
       zoneCode,
