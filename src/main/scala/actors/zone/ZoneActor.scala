@@ -91,6 +91,23 @@ private case class ZoneActor():
         }
     }
 
+  private def ignoringPluvStatusAfterSolved(cycle:Int)(zone: Zone): Behavior[Message] =
+    Behaviors.receivePartial {
+      pluvTryRegister(zone, ignoringPluvStatusAfterSolved(cycle))
+        .orElse(memberExited(zone, ignoringPluvStatusAfterSolved(cycle)))
+        .orElse(getZoneStatusHandler(zone, ignoringPluvStatusAfterSolved(cycle)))
+        .orElse {
+          case (ctx, PluviometerStatus(pluviometer, pluvRef)) =>
+            ctx.log.info(s"Inside ignoringPluvStatusAfterSolved received pluviometer: $pluviometer")
+            ctx.log.info(s"Inside ignoringPluvStatusAfterSolved cycle: $cycle")
+            val newPluviometers = zone.pluviometers + ((pluviometer.pluvCode, pluviometer))
+            if cycle > 0 then
+              ignoringPluvStatusAfterSolved(cycle-1)(zone.copy(pluviometers = newPluviometers, zoneState = ZoneOk()))
+            else
+              working(zone.copy(pluviometers = newPluviometers, zoneState = ZoneOk()))
+        }
+    }
+
   private def underManagement(zone: Zone): Behavior[Message] =
     Behaviors.receivePartial {
       pluvTryRegister(zone, underManagement)
@@ -101,7 +118,9 @@ private case class ZoneActor():
           case (ctx, Solved(fireSRef)) =>
             ctx.log.info("Received solved")
             this.resetAlarm(ctx)
-            working(zone.copy(zoneState = ZoneOk()))
+//            working(zone.copy(zoneState = ZoneOk()))
+            ignoringPluvStatusAfterSolved(zone.maxPluviometersPerZone*2)(zone.copy(zoneState = ZoneOk()))
+
         }
     }
 
