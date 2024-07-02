@@ -24,8 +24,8 @@ object Deploy:
       PubSubChannelName
     ))(s"actor-$fireStationCode")
 
-  def view(fsCodes: Seq[String], topicName: String): Behavior[Message] =
-    deploy(ViewActor(fsCodes, topicName))("actor-view")
+  def view(fsCode:String, allFSCodes: Seq[String], topicName: String): Behavior[Message] =
+    deploy(ViewActor(fsCode, allFSCodes, topicName))("actor-view")
 
   private def deploy(behavior: Behavior[Message])(actorName: String): Behavior[Message] = Behaviors.setup { ctx =>
     ctx.spawn(behavior, actorName)

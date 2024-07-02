@@ -10,11 +10,11 @@ import view.FireStationGUI
 object ViewActor:
   sealed trait Command extends Message
 
-  def apply(fsCodes: Seq[String], topicName: String): Behavior[Message] =
-    new ViewActor(fsCodes, topicName).start()
+  def apply(fsCode:String, allFSCodes: Seq[String], topicName: String): Behavior[Message] =
+    new ViewActor(fsCode, allFSCodes, topicName).start()
 
 
-case class ViewActor(fsCodes: Seq[String], topicName: String):
+case class ViewActor(fsCode: String, allFSCodes: Seq[String], topicName: String):
 
   import actors.firestastion.FireStationActor
   import akka.actor.typed.pubsub.{PubSub, Topic}
@@ -26,13 +26,13 @@ case class ViewActor(fsCodes: Seq[String], topicName: String):
   import scala.collection.mutable
 
 //  private val fireStations = mutable.Map[String, ActorRef[Message]]()
-  private val gui = FireStationGUI(fsCodes)
+  private val gui = FireStationGUI(fsCode, allFSCodes)
   private var context: ActorContext[Message] = _
 
   private def start(): Behavior[Message] = Behaviors.setup { ctx =>
     ctx.spawn(listenerFireStation(ctx.self), s"listener-fs")
     context = ctx
-    for fs <- fsCodes do
+    for fs <- allFSCodes do
       gui.setButtonAction(ViewListenerActor(fs, topicName, ctx, INTERVENE), fs)
     gui.main(Array.empty)
     debugBehav()

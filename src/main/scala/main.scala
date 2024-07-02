@@ -88,11 +88,22 @@ private var topicName: String = "GUIChannel"
       PluviometerNotAlarm()
     ), s"actor-pluviometer-$pluvCode"))
 
+@main def singleDeploySensor04(): Unit =
+  val pluvCode = "esp-004"
+  startup(port = 8084)(Deploy.pluviometer(
+    Pluviometer(
+      pluvCode = pluvCode,
+      zoneCode = zoneCode1,
+      Position(0, 0),
+      waterLevel = 0,
+      PluviometerNotAlarm()
+    ), s"actor-pluviometer-$pluvCode"))
+
 // Deploy view
 @main def deployView(): Unit =
   //  val codes = Seq("fs-01", "fs-02", "fs-03", "fs-04")
   val codes = Seq(fireStationCode1)
-  startup(port = 8004)(Deploy.view(codes, topicName))
+  startup(port = 8004)(Deploy.view(fireStationCode1, codes, topicName))
 
 object TestFirestation:
 
@@ -186,9 +197,12 @@ object Main extends App:
     val fsCode = s"firestation-$index"
     fsCodes += fsCode
     startup(port = 10199 + index)(Deploy.fireStation(zone.zoneCode, fsCode, topicName))
-
-  //Deploy view
-  startup(port = 10300)(Deploy.view(fsCodes.toSeq, topicName))
-  startup(port = 10301)(Deploy.view(fsCodes.toSeq, topicName))
+  
+  for 
+    fsCode <- fsCodes
+  yield
+    //Deploy view
+    startup(port = 10300)(Deploy.view(fsCode, fsCodes.toSeq, topicName))
+    startup(port = 10301)(Deploy.view(fsCode, fsCodes.toSeq, topicName))
 
 

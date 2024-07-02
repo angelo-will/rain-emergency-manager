@@ -17,7 +17,7 @@ object FireStationGUI:
     case Busy
     case Free
 
-  def apply(fsList: Seq[String]) = new FireStationGUI(fsList)
+  def apply(fireStationCode:String, allFireStationsCode: Seq[String]) = new FireStationGUI(fireStationCode, allFireStationsCode)
 
 case class FireStationStateComponent(fsCode: String) extends BoxPanel(Orientation.Vertical):
 
@@ -66,7 +66,7 @@ case class FireStationStateComponent(fsCode: String) extends BoxPanel(Orientatio
 
 end FireStationStateComponent
 
-case class FireStationGUI(fireStationsCodes: Seq[String]) extends SimpleSwingApplication {
+case class FireStationGUI(fireStationCode: String, allFireStationsCode: Seq[String]) extends SimpleSwingApplication {
 
   import FireStationGUI.{ZoneStateGUI, FireStationStateGUI}
 
@@ -77,7 +77,7 @@ case class FireStationGUI(fireStationsCodes: Seq[String]) extends SimpleSwingApp
 
     private val mainPanel = new FlowPanel() {
     contents += new Label("Stato delle caserma")
-    for fs <- fireStationsCodes do
+    for fs <- allFireStationsCode do
       println("Add new FS panel")
       val fireS = FireStationStateComponent(fs)
       fireStations(fs) = fireS
