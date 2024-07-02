@@ -1,6 +1,6 @@
 package actors.view
 
-import actors.firestastion.FireStationActor.FireStationStatus
+import actors.firestastion.FireStationActor.{FireStationStatus, ZoneNotFound}
 import actors.view.ViewListenerActor.ActionCommand.{END_INTERVENTION, INTERVENE, WAITING}
 import akka.actor.typed.Behavior
 import message.Message
@@ -49,6 +49,11 @@ case class ViewActor(fsCode: String, allFSCodes: Seq[String], topicName: String)
         updateFSState(fsCode, fireStationState)
         updateFSZState(fsCode, zoneClass.zoneState)
         Behaviors.same
+
+      case ZoneNotFound(fsCode) => 
+        updateZoneNotFound(fsCode)
+        Behaviors.same
+        
     }
   }
 
@@ -59,6 +64,9 @@ case class ViewActor(fsCode: String, allFSCodes: Seq[String], topicName: String)
 
   private def updateControlledZone(fsCode: String, zoneCode: String): Unit =
     gui.setFSZControlled(fsCode, zoneCode)
+    
+  private def updateZoneNotFound(fsCode: String): Unit =
+    gui.disableFireStation(fsCode)
 
   private def updateFSZSensorsQuantityState(fsCode: String, pluvQuantity: Int): Unit =
     gui.setPluvZoneQuantity(fsCode, pluvQuantity)

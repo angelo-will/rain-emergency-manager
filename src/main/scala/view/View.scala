@@ -55,10 +55,21 @@ case class FireStationStateComponent(fsCode: String) extends BoxPanel(Orientatio
 
   def setControlledZone(zoneCode: String): Unit =
     zoneControlledCode.text = zoneCode
+
+  def resetLabels(): Unit =
+    setControlledZone("Non connessa")
+    setPluvQuantity(0)
+    setZoneState("Non connessa")
+    setFState(FireStationStateGUI.Free)
+    setButton(false)
+
   def setPluvQuantity(quantity: Int): Unit = sensors.text = "" + quantity
 
   def setButtonAction(listener: Action): Unit =
     button.action = listener
+
+  def setButton(active: Boolean): Unit =
+    button.enabled = active
 
   private def setZoneState(state: String): Unit = zoneState.text = state
 
@@ -91,6 +102,10 @@ case class FireStationGUI(fireStationCode: String, allFireStationsCode: Seq[Stri
     val fsComponent = fireStations(fsCode)
     println(s"Add listener to FSComponent ${fsComponent.fsCode}")
     fsComponent.setButtonAction(listener)
+    fireStations(fsCode).setButton(true)
+
+  def disableFireStation(fsCode: String): Unit =
+    fireStations(fsCode).resetLabels()
     
   def setFSZControlled(fsCode: String, zoneCode: String): Unit =
     fireStations(fsCode).setControlledZone(zoneCode)  

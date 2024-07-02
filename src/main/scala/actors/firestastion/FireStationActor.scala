@@ -1,7 +1,7 @@
 package actors.firestastion
 
 import actors.commonbehaviors.MemberEventBehavior
-import actors.firestastion.FireStationActor.AdapterMessageForConnection
+import actors.firestastion.FireStationActor.{AdapterMessageForConnection, ZoneNotFound}
 import actors.zone.ZoneActor
 import akka.actor.typed.receptionist.{Receptionist, ServiceKey}
 import akka.actor.typed.scaladsl.{ActorContext, Behaviors, TimerScheduler}
@@ -27,6 +27,9 @@ object FireStationActor:
 
   //////
   case class FireStationStatus(fireStationStatus: FireStation) extends Command
+
+  // Message used to inform the gui that the firestation is not able to connect to its designed zone
+  case class ZoneNotFound(fsCode: String) extends Command
 
   //adapter use for recover the zoneActor reference
   private case class AdapterMessageForConnection(listing: Receptionist.Listing) extends Command
@@ -62,6 +65,7 @@ private case class FireStationActor(fireStationCode: String, zoneCode: String, p
         case (ctx, FindZone(zoneCode)) =>
           ctx.log.info(s"Timer tick, i'm trying to connect to zone $zoneCode")
           ctx.system.receptionist ! Receptionist.Subscribe(zoneServiceKey, ctx.messageAdapter[Receptionist.Listing](AdapterMessageForConnection.apply))
+          retrievePubSubTopic(ctx, pubSubChannelName) ! Topic.publish(ZoneNotFound(fireStationCode))
           Behaviors.same
         case (ctx, AdapterMessageForConnection(zoneServiceKey.Listing(l))) =>
           if (l.nonEmpty) {
