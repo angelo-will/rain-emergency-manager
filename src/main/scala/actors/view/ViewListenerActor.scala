@@ -38,7 +38,7 @@ object ViewListenerActor:
         }
       case ActionCommand.END_INTERVENTION =>
         // The firestation has started the intervention and eventually ended it
-        Action("IN INTERVENTO") {
+        Action("TERMINA") {
           println(s"Sta intervendendo la caserma:$fsCode")
           // No need to send message to the topic
           // The fire station is already intervening and when the intervention ends
