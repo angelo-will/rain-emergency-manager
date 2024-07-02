@@ -3,8 +3,7 @@ package utils
 import akka.actor.typed.{ActorSystem, Behavior}
 import com.typesafe.config.ConfigFactory
 
-//val seeds = List(2551, 2552) // seed used in the configuration
-val seeds = List(2551) // seed used in the configuration
+val seeds = List(2551, 2552) // seed used in the configuration
 
 def startup[X](file: String = "base-cluster", port: Int)(root: => Behavior[X]): ActorSystem[X] =
   // Override the configuration of the port
