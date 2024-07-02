@@ -40,6 +40,11 @@ private case class PluviometerActor(pluviometer: Pluviometer):
   private val searchZoneFrequency = FiniteDuration(5000, "milli")
   private val updateFrequency = FiniteDuration(3, "second")
 
+  private val valuesBeforeUpdate = 5
+
+  private var sensorValue = Random.nextInt(100)
+  private var updateCounter = 0
+
   private def starting: Behavior[Message] = Behaviors.setup { ctx =>
     ctx.spawn(MemberEventBehavior.memberExitBehavior(ctx), s"${pluviometer.pluvCode}-member-event")
     connectToZone
@@ -92,8 +97,13 @@ private case class PluviometerActor(pluviometer: Pluviometer):
         .orElse(handlerZoneDisconnected(zoneRef, timerScheduler))
         .orElse {
           case (ctx, UnsetAlarm(zoneRef)) =>
-            ctx.log.info(s"Received unset alarm to zone, passin to not alarm")
-            val newPluviometer = pluviometer.copy(waterLevel = Random.nextInt(100), pluviometerState = PluviometerNotAlarm())
+            ctx.log.info(s"Received unset alarm from zone, passing to not alarm")
+            ////JUST FOR TEST//////
+            updateCounter = 0
+            sensorValue = 0
+            updateTestCounter()
+            ///////////////////////
+            val newPluviometer = pluviometer.copy(waterLevel = sensorValue, pluviometerState = PluviometerNotAlarm())
             zoneRef ! PluviometerStatus(newPluviometer, ctx.self)
             notAlarm(newPluviometer, zoneRef, timerScheduler)
           case (ctx, Alarm(_)) => Behaviors.same
@@ -109,11 +119,21 @@ private case class PluviometerActor(pluviometer: Pluviometer):
   private def handlerSendDataToZone(pluviometer: Pluviometer)(newBehavior: Pluviometer => Behavior[Message]): PartialFunction[(ActorContext[Message], Message), Behavior[Message]] =
     case (ctx, SendDataToZone(zoneRef)) =>
       ctx.log.info(s"Received SendDataToZone")
+      ////JUST FOR TEST//////
+      updateTestCounter()
+      ///////////////////////
       // That's emulate registration data by sensor
-      val newPluviometer = pluviometer.copy(waterLevel = Random.nextInt(400))
+      val newPluviometer = pluviometer.copy(waterLevel = sensorValue)
       ctx.log.info(s"Sending to zone $newPluviometer")
       zoneRef ! PluviometerStatus(newPluviometer, ctx.self)
       newBehavior(newPluviometer)
+
+  private def updateTestCounter(): Unit = {
+    updateCounter += 1
+    if updateCounter >= valuesBeforeUpdate then
+      updateCounter = 0
+      sensorValue = Random.nextInt(400)
+  }
 
   private def handlerZoneDisconnected(zoneRef: ActorRef[Message], timerScheduler: TimerScheduler[Message]): PartialFunction[(ActorContext[Message], Message), Behavior[Message]] =
     case (ctx, MemberEventBehavior.MemberExit(address)) =>

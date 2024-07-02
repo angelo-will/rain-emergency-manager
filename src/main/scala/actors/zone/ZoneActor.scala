@@ -57,7 +57,7 @@ private case class ZoneActor():
             ctx.log.info(s"Inside working, zone: $zone")
             ctx.log.info(s"Received pluviometer: $pluv")
             val newPluviometers = zone.pluviometers + ((pluv.pluvCode, pluv))
-            if isZoneInAlarm(zone) then
+            if isZoneInAlarm(zone.copy(pluviometers = newPluviometers)) then
               pluvRef ! PluviometerActor.Alarm(ctx.self)
               inAlarm(zone.copy(zoneState = ZoneAlarm(), pluviometers = newPluviometers))
             else
@@ -74,6 +74,7 @@ private case class ZoneActor():
       val newPluviometers = zone.pluviometers + ((pluviometer.pluvCode, pluviometer.copy(pluviometerState = PluviometerAlarm())))
       zone.zoneState match
         case ZoneAlarm() | ZoneInManaging() =>
+          ctx.log.info(s"Saying to ${pluviometer.pluvCode} with value ${pluviometer.waterLevel} to go in alarm")
           pluvRef ! PluviometerActor.Alarm(ctx.self)
           behavior(zone.copy(pluviometers = newPluviometers))
         case _ => Behaviors.same
@@ -146,9 +147,6 @@ private case class ZoneActor():
     val c = zone.pluviometers.foldLeft(0) {
       case (count, (_, p)) => if p.waterLevel >= zone.maxWaterLevel then count + 1 else count
     }
-    println(s"ceil :$m")
-    println(s"count :$c")
-    println(s"pluv :${zone.pluviometers.size}")
     c >= m
 
 
