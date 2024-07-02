@@ -105,7 +105,7 @@ case class FireStationGUI(fireStationCode: String, allFireStationsCode: Seq[Stri
     fireStations(fSCode).setPluvQuantity(quantity)
 
   def top: Frame = new MainFrame {
-    title = "Visualizzazione zona e caserme"
+    title = s"Visualizzazione zone - Caserma ${fireStationCode.trim.substring(12)}"
     contents = mainPanel
     
   }
