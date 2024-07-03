@@ -18,7 +18,6 @@ object ViewActor:
   def apply(fsCode: String, allFSCodes: Seq[String], topicName: String): Behavior[Message] =
     new ViewActor(fsCode, allFSCodes, topicName).start()
 
-
 case class ViewActor(fsCode: String, allFSCodes: Seq[String], topicName: String):
 
   import actors.firestastion.FireStationActor
@@ -70,7 +69,6 @@ case class ViewActor(fsCode: String, allFSCodes: Seq[String], topicName: String)
             else
               counters(k) = v + 1
           Behaviors.same
-
       }
     }
   }

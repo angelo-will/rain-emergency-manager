@@ -1,11 +1,7 @@
 package view
 
-import actors.view.ViewListenerActor
-
-import java.awt.CardLayout
 import scala.collection.mutable
 import scala.swing.{FlowPanel, *}
-import scala.swing.event.ButtonClicked
 
 object FireStationGUI:
   enum ZoneStateGUI:
@@ -68,6 +64,7 @@ case class FireStationStateComponent(fsCode: String) extends BoxPanel(Orientatio
 
   def setButtonAction(listener: Action): Unit =
     button.action = listener
+    setButton(true)
 
   def setButton(active: Boolean): Unit =
     button.enabled = active
@@ -125,7 +122,6 @@ case class FireStationGUI(fireStationCode: String, allFireStationsCode: Seq[Stri
   def top: Frame = new MainFrame {
     title = s"Visualizzazione zone - Caserma ${fireStationCode.trim.substring(12)}"
     contents = mainPanel
-
   }
 
 }

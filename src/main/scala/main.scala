@@ -22,7 +22,7 @@ object Main extends App:
 
   case class City(width: Double, height: Double, columns: Int, rows: Int)
 
-  val city = City(100, 200, 1, 1)
+  val city = City(100, 200, 1, 2)
 
   val maxPluviometersPerZone = 2
   val pluvPerZone = 3

@@ -6,7 +6,7 @@ import actors.view.ViewActor
 import actors.zone.ZoneActor
 import akka.actor.typed.Behavior
 import akka.actor.typed.scaladsl.Behaviors
-import message.Message
+import actors.message.Message
 import systemelements.SystemElements.{Pluviometer, Zone}
 
 object Deploy:
