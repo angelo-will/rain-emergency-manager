@@ -1,7 +1,7 @@
 package utilsduringdebug
 
 import akka.actor.typed.scaladsl.ActorContext
-import message.Message
+import actors.message.Message
 
 object PrintInfo:
   def printActorInfo(intro: String, ctx: ActorContext[Message]): Unit =

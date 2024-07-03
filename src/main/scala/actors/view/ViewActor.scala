@@ -4,7 +4,7 @@ import actors.firestastion.FireStationActor.{FireStationStatus, ZoneNotFound}
 import actors.view.ViewActor.CheckFireStationConnection
 import actors.view.ViewListenerActor.ActionCommand.{END_INTERVENTION, INTERVENE, WAITING}
 import akka.actor.typed.Behavior
-import message.Message
+import actors.message.Message
 import systemelements.SystemElements.*
 import view.FireStationGUI
 

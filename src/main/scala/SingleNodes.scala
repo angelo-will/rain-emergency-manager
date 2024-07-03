@@ -2,7 +2,7 @@ import actors.Deploy
 import akka.actor.typed.{ActorRef, ActorSystem, Behavior}
 import akka.actor.typed.pubsub.{PubSub, Topic}
 import akka.actor.typed.scaladsl.Behaviors
-import message.Message
+import actors.message.Message
 import utils.startup
 import systemelements.SystemElements.*
 import actors.Deploy.*

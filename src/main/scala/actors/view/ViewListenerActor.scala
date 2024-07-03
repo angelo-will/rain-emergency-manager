@@ -1,12 +1,10 @@
 package actors.view
 
 import actors.firestastion.FireStationActor
-import actors.firestastion.FireStationActor.FireStationStatus
 import akka.actor.typed.ActorRef
 import akka.actor.typed.pubsub.{PubSub, Topic}
 import akka.actor.typed.scaladsl.ActorContext
-import message.Message
-import systemelements.SystemElements.{FireStation, FireStationState, Zone, ZoneState}
+import actors.message.Message
 
 import scala.swing.Action
 

@@ -3,7 +3,7 @@ package actors.zone
 import akka.actor.typed.{ActorRef, Behavior}
 import akka.cluster.ClusterEvent.MemberExited
 import systemelements.SystemElements.*
-import message.Message
+import actors.message.Message
 
 
 object ZoneActor:

@@ -4,7 +4,7 @@ import actors.commonbehaviors.MemberEventBehavior
 import akka.actor.typed.receptionist.{Receptionist, ServiceKey}
 import akka.actor.typed.scaladsl.*
 import akka.actor.typed.{ActorRef, Behavior}
-import message.Message
+import actors.message.Message
 import systemelements.SystemElements.{Pluviometer, PluviometerAlarm, PluviometerNotAlarm}
 
 import scala.concurrent.duration.FiniteDuration
@@ -34,7 +34,7 @@ private case class PluviometerActor(pluviometer: Pluviometer):
 
   import PluviometerActor.*
   import actors.zone.ZoneActor.ElementConnectedAck
-  import message.Message
+  import actors.message.Message
   import systemelements.SystemElements.PluviometerState
 
   private val searchZoneFrequency = FiniteDuration(5000, "milli")

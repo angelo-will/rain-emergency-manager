@@ -1,3 +1,3 @@
-package message
+package actors.message
 
 trait Message

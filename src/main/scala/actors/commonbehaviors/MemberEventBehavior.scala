@@ -5,7 +5,7 @@ import akka.actor.typed.Behavior
 import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
 import akka.cluster.ClusterEvent.{MemberEvent, MemberExited}
 import akka.cluster.typed.{Cluster, Subscribe}
-import message.Message
+import actors.message.Message
 
 import scala.reflect.ClassTag
 

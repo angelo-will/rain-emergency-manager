@@ -1,13 +1,9 @@
 package actors.firestastion
 
-import actors.commonbehaviors.MemberEventBehavior
-import actors.firestastion.FireStationActor.{AdapterMessageForConnection, ZoneNotFound}
-import actors.zone.ZoneActor
-import akka.actor.typed.receptionist.{Receptionist, ServiceKey}
-import akka.actor.typed.scaladsl.{ActorContext, Behaviors, TimerScheduler}
+import akka.actor.typed.receptionist.Receptionist
 import akka.actor.typed.{ActorRef, Behavior}
-import message.Message
-import systemelements.SystemElements.{FireStation, FireStationBusy, FireStationFree, FireStationState}
+import systemelements.SystemElements.FireStation
+import actors.message.Message
 
 object FireStationActor:
 
@@ -40,11 +36,19 @@ object FireStationActor:
 
 private case class FireStationActor(fireStationCode: String, zoneCode: String, pubSubChannelName: String):
 
-  import FireStationActor.{Managing, Solved, FindZone, SendGetStatus, FireStationStatus}
+  import akka.actor.typed.receptionist.ServiceKey
+  import akka.actor.typed.scaladsl.{Behaviors, ActorContext, TimerScheduler}
+  import akka.actor.typed.pubsub.{Topic, PubSub}
   import scala.concurrent.duration.FiniteDuration
+
+  import systemelements.SystemElements.{FireStationFree, FireStationBusy, FireStationState}
+
+  import FireStationActor.{Managing, Solved, FindZone, SendGetStatus, FireStationStatus, ZoneNotFound, AdapterMessageForConnection}
+
+  import actors.commonbehaviors.MemberEventBehavior
+  import actors.zone.ZoneActor
   import actors.zone.ZoneActor.ZoneStatus
-  import akka.actor.typed.pubsub.Topic
-  import akka.actor.typed.pubsub.PubSub
+
 
   private val searchingZoneFrequency = FiniteDuration(5, "second")
   private val askZoneStatus = FiniteDuration(1, "second")
@@ -80,7 +84,7 @@ private case class FireStationActor(fireStationCode: String, zoneCode: String, p
   private def updateJob(zoneRef: ActorRef[Message]): Behavior[Message] =
     Behaviors.withTimers { timers =>
       timers.startTimerAtFixedRate(SendGetStatus(zoneRef), askZoneStatus)
-      free(zoneRef,timers)
+      free(zoneRef, timers)
     }
 
   private def free(zoneRef: ActorRef[Message], timerScheduler: TimerScheduler[Message]): Behavior[Message] = Behaviors.receivePartial {
