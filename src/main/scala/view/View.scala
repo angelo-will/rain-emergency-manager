@@ -17,7 +17,7 @@ object FireStationGUI:
     case Busy
     case Free
 
-  def apply(fireStationCode:String, allFireStationsCode: Seq[String]) = new FireStationGUI(fireStationCode, allFireStationsCode)
+  def apply(fireStationCode: String, allFireStationsCode: Seq[String]) = new FireStationGUI(fireStationCode, allFireStationsCode)
 
 case class FireStationStateComponent(fsCode: String) extends BoxPanel(Orientation.Vertical):
 
@@ -29,6 +29,7 @@ case class FireStationStateComponent(fsCode: String) extends BoxPanel(Orientatio
   private val fireStationState = new Label("Non Connessa")
   private val zoneControlledCode = new Label("Non Connessa")
   private val button = new Button("")
+  button.enabled = false
 
   contents += new Label(s"CASERMA ${fsCode.trim.substring(12)}")
   contents += new Label("Zona controllata:")
@@ -86,29 +87,31 @@ case class FireStationGUI(fireStationCode: String, allFireStationsCode: Seq[Stri
   private val panels: mutable.Seq[Component] = mutable.Seq()
   val fireStations: mutable.Map[String, FireStationStateComponent] = mutable.Map()
 
-    private val mainPanel = new FlowPanel() {
+  private val mainPanel = new FlowPanel() {
     contents += new Label("Stato delle caserma")
-    for fs <- allFireStationsCode do
+    for fsCode <- allFireStationsCode do
       println("Add new FS panel")
-      val fireS = FireStationStateComponent(fs)
-      fireStations(fs) = fireS
-      contents += fireS
-      print(s"Add FS $fs: $fireS\nNow firestations is: $fireStations\n\n\n")
+      val fireSGui = FireStationStateComponent(fsCode)
+      if fsCode.equals(fireStationCode) then fireSGui.setButton(true)
+      fireStations(fsCode) = fireSGui
+      contents += fireSGui
+      print(s"Add FS $fsCode: $fireSGui\nNow firestations is: $fireStations\n\n\n")
     this.revalidate()
     this.repaint()
   }
 
   def setButtonAction(listener: Action, fsCode: String): Unit =
-    val fsComponent = fireStations(fsCode)
-    println(s"Add listener to FSComponent ${fsComponent.fsCode}")
-    fsComponent.setButtonAction(listener)
-    fireStations(fsCode).setButton(true)
+    if fsCode.equals(fireStationCode) then
+      val fsComponent = fireStations(fsCode)
+      println(s"Add listener to FSComponent ${fsComponent.fsCode}")
+      fsComponent.setButtonAction(listener)
+      fireStations(fsCode).setButton(true)
 
   def disableFireStation(fsCode: String): Unit =
     fireStations(fsCode).resetLabels()
-    
+
   def setFSZControlled(fsCode: String, zoneCode: String): Unit =
-    fireStations(fsCode).setControlledZone(zoneCode)  
+    fireStations(fsCode).setControlledZone(zoneCode)
 
   def setFSZState(fSCode: String, zoneStateGUI: ZoneStateGUI): Unit =
     fireStations(fSCode).setZoneState(zoneStateGUI)
@@ -122,7 +125,7 @@ case class FireStationGUI(fireStationCode: String, allFireStationsCode: Seq[Stri
   def top: Frame = new MainFrame {
     title = s"Visualizzazione zone - Caserma ${fireStationCode.trim.substring(12)}"
     contents = mainPanel
-    
+
   }
 
 }
