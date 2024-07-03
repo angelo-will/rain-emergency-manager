@@ -1,16 +1,21 @@
 package actors.view
 
 import actors.firestastion.FireStationActor.{FireStationStatus, ZoneNotFound}
+import actors.view.ViewActor.CheckFireStationConnection
 import actors.view.ViewListenerActor.ActionCommand.{END_INTERVENTION, INTERVENE, WAITING}
 import akka.actor.typed.Behavior
 import message.Message
 import systemelements.SystemElements.*
 import view.FireStationGUI
 
+import scala.concurrent.duration.FiniteDuration
+
 object ViewActor:
   sealed trait Command extends Message
 
-  def apply(fsCode:String, allFSCodes: Seq[String], topicName: String): Behavior[Message] =
+  private case class CheckFireStationConnection() extends Command
+
+  def apply(fsCode: String, allFSCodes: Seq[String], topicName: String): Behavior[Message] =
     new ViewActor(fsCode, allFSCodes, topicName).start()
 
 
@@ -25,35 +30,48 @@ case class ViewActor(fsCode: String, allFSCodes: Seq[String], topicName: String)
 
   import scala.collection.mutable
 
-//  private val fireStations = mutable.Map[String, ActorRef[Message]]()
   private val gui = FireStationGUI(fsCode, allFSCodes)
-  private var context: ActorContext[Message] = _
+  private val checkFSConnectionFrequency = FiniteDuration(20, "second")
+  private val maxTimerCycle = 1
+  private val counters = mutable.Map.from(allFSCodes.map(code => (code, 0)))
 
   private def start(): Behavior[Message] = Behaviors.setup { ctx =>
     ctx.spawn(listenerFireStation(ctx.self), s"listener-fs")
-    context = ctx
     for fs <- allFSCodes do
       gui.setButtonAction(ViewListenerActor(fs, topicName, ctx, INTERVENE), fs)
     gui.main(Array.empty)
     debugBehav()
   }
 
-  private def listenerFireStation(forwardActor: ActorRef[Message]) = Behaviors.setup { ctx =>
-    val topic: ActorRef[Topic.Command[Message]] = PubSub(ctx.system).topic[Message](topicName)
-    topic ! Topic.subscribe(ctx.self)
-    Behaviors.receiveMessagePartial {
-      // Sent by Actors
-      case FireStationStatus(FireStation(fsCode, fireStationState, zoneClass)) =>
-        updateControlledZone(fsCode, zoneClass.zoneCode)
-        updateFSZSensorsQuantityState(fsCode, zoneClass.pluviometers.size)
-        updateFSState(fsCode, fireStationState)
-        updateFSZState(fsCode, zoneClass.zoneState)
-        Behaviors.same
+  private def listenerFireStation(forwardActor: ActorRef[Message]): Behavior[Message] = Behaviors.setup { ctx =>
+    Behaviors.withTimers { timers =>
+      timers.startTimerAtFixedRate(CheckFireStationConnection(), checkFSConnectionFrequency)
+      val topic: ActorRef[Topic.Command[Message]] = PubSub(ctx.system).topic[Message](topicName)
+      topic ! Topic.subscribe(ctx.self)
+      Behaviors.receiveMessagePartial {
+        // Sent by Actors
+        case FireStationStatus(FireStation(fsCode, fireStationState, zoneClass)) =>
+          updateControlledZone(fsCode, zoneClass.zoneCode)
+          updateFSZSensorsQuantityState(fsCode, zoneClass.pluviometers.size)
+          updateFSState(fsCode, fireStationState)
+          updateFSZState(fsCode, zoneClass.zoneState, ctx)
+          counters(fsCode) = 0
+          Behaviors.same
 
-      case ZoneNotFound(fsCode) => 
-        updateZoneNotFound(fsCode)
-        Behaviors.same
-        
+        case ZoneNotFound(fsCode) =>
+          updateZoneNotFound(fsCode)
+          Behaviors.same
+
+        case CheckFireStationConnection() =>
+          for (k, v) <- counters do
+            if v >= maxTimerCycle then
+              gui.disableFireStation(k)
+              ctx.log.info(s"Disabilito FS $k")
+            else
+              counters(k) = v + 1
+          Behaviors.same
+
+      }
     }
   }
 
@@ -64,7 +82,7 @@ case class ViewActor(fsCode: String, allFSCodes: Seq[String], topicName: String)
 
   private def updateControlledZone(fsCode: String, zoneCode: String): Unit =
     gui.setFSZControlled(fsCode, zoneCode)
-    
+
   private def updateZoneNotFound(fsCode: String): Unit =
     gui.disableFireStation(fsCode)
 
@@ -76,7 +94,7 @@ case class ViewActor(fsCode: String, allFSCodes: Seq[String], topicName: String)
       case fsState if fsState.equals(FireStationFree()) => gui.setFSState(fsCode, FireStationStateGUI.Free)
       case fsState if fsState.equals(FireStationBusy()) => gui.setFSState(fsCode, FireStationStateGUI.Busy)
 
-  private def updateFSZState(fsCode: String, zoneState: ZoneState): Unit =
+  private def updateFSZState(fsCode: String, zoneState: ZoneState, context: ActorContext[Message]): Unit =
     zoneState match
       case zState if zState.equals(ZoneAlarm()) =>
         gui.setFSZState(fsCode, ZoneStateGUI.Alarm)
