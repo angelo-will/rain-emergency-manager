@@ -10,9 +10,8 @@ import view.FireStationGUI
 object ViewActor:
   sealed trait Command extends Message
 
-  def apply(fsCode:String, allFSCodes: Seq[String], topicName: String): Behavior[Message] =
+  def apply(fsCode: String, allFSCodes: Seq[String], topicName: String): Behavior[Message] =
     new ViewActor(fsCode, allFSCodes, topicName).start()
-
 
 case class ViewActor(fsCode: String, allFSCodes: Seq[String], topicName: String):
 
@@ -23,9 +22,6 @@ case class ViewActor(fsCode: String, allFSCodes: Seq[String], topicName: String)
   import systemelements.SystemElements.FireStationState
   import view.FireStationGUI.{FireStationStateGUI, ZoneStateGUI}
 
-  import scala.collection.mutable
-
-//  private val fireStations = mutable.Map[String, ActorRef[Message]]()
   private val gui = FireStationGUI(fsCode, allFSCodes)
   private var context: ActorContext[Message] = _
 
@@ -50,10 +46,10 @@ case class ViewActor(fsCode: String, allFSCodes: Seq[String], topicName: String)
         updateFSZState(fsCode, zoneClass.zoneState)
         Behaviors.same
 
-      case ZoneNotFound(fsCode) => 
+      case ZoneNotFound(fsCode) =>
         updateZoneNotFound(fsCode)
         Behaviors.same
-        
+
     }
   }
 
@@ -64,7 +60,7 @@ case class ViewActor(fsCode: String, allFSCodes: Seq[String], topicName: String)
 
   private def updateControlledZone(fsCode: String, zoneCode: String): Unit =
     gui.setFSZControlled(fsCode, zoneCode)
-    
+
   private def updateZoneNotFound(fsCode: String): Unit =
     gui.disableFireStation(fsCode)
 
