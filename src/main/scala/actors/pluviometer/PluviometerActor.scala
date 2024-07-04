@@ -1,30 +1,68 @@
 package actors.pluviometer
 
-import actors.commonbehaviors.MemberEventBehavior
-import akka.actor.typed.receptionist.{Receptionist, ServiceKey}
+import akka.actor.typed.receptionist.Receptionist
 import akka.actor.typed.scaladsl.*
 import akka.actor.typed.{ActorRef, Behavior}
 import actors.message.Message
-import systemelements.SystemElements.{Pluviometer, PluviometerAlarm, PluviometerNotAlarm}
+import systemelements.SystemElements.Pluviometer
 
-import scala.concurrent.duration.FiniteDuration
-import scala.util.Random
 
 object PluviometerActor:
+
+  /**
+   * Sealed trait representing a command that the PluviometerActor can handle.
+   */
   sealed trait Command extends Message
 
+  /**
+   * Internal command to find a zone based on its code.
+   *
+   * @param zoneCode the code of the zone to find.
+   */
   private case class FindZone(zoneCode: String) extends Command
 
+  /**
+   * Internal command to notify to send data to a zone.
+   *
+   * @param zoneRef the reference to the zone actor to send data to.
+   */
   private case class SendDataToZone(zoneRef: ActorRef[Message]) extends Command
 
+  /**
+   * Internal command to handle adapter messages for connection.
+   *
+   * @param listing the listing of actors from the receptionist.
+   */
   private case class AdapterMessageForConnection(listing: Receptionist.Listing) extends Command
 
+  /**
+   * Command to try registering a pluviometer.
+   *
+   * @param pluviometer     the pluviometer to register.
+   * @param actorToRegister the reference to the actor to register.
+   */
   case class PluviometerTryRegister(pluviometer: Pluviometer, actorToRegister: ActorRef[Message]) extends Command
 
+  /**
+   * Command representing the status of a pluviometer.
+   *
+   * @param pluviometer the pluviometer whose status is being reported.
+   * @param pluvRef     the reference to the pluviometer actor.
+   */
   case class PluviometerStatus(pluviometer: Pluviometer, pluvRef: ActorRef[Message]) extends Command
 
+  /**
+   * Command to make pluviometer enter in alarm state.
+   *
+   * @param zoneRef the reference of the zone actor that notifies it.
+   */
   case class Alarm(zoneRef: ActorRef[Message]) extends Command
 
+  /**
+   * Command to make pluviometer exit from alarm state.
+   *
+   * @param zoneRef the reference of the zone actor that notifies it.
+   */
   case class UnsetAlarm(zoneRef: ActorRef[Message]) extends Command
 
   def apply(pluviometer: Pluviometer): Behavior[Message] =
@@ -32,10 +70,16 @@ object PluviometerActor:
 
 private case class PluviometerActor(pluviometer: Pluviometer):
 
+  import akka.actor.typed.receptionist.ServiceKey
+  import scala.concurrent.duration.FiniteDuration
+  import scala.util.Random
+
+  import systemelements.SystemElements.{PluviometerState, PluviometerAlarm, PluviometerNotAlarm}
+
   import PluviometerActor.*
+
+  import actors.commonbehaviors.MemberEventBehavior
   import actors.zone.ZoneActor.ElementConnectedAck
-  import actors.message.Message
-  import systemelements.SystemElements.PluviometerState
 
   private val searchZoneFrequency = FiniteDuration(5000, "milli")
   private val updateFrequency = FiniteDuration(3, "second")
@@ -52,6 +96,7 @@ private case class PluviometerActor(pluviometer: Pluviometer):
 
   private def connectToZone: Behavior[Message] =
     Behaviors.setup { ctx =>
+      ctx.setLoggerName(s"actors-pluviometer-${pluviometer.pluvCode}-in-${pluviometer.zoneCode}")
       Behaviors.withTimers { timers =>
         val zoneServiceKey = ServiceKey[Message](pluviometer.zoneCode)
         timers.startTimerAtFixedRate(FindZone(pluviometer.zoneCode), searchZoneFrequency)
