@@ -13,49 +13,49 @@ object FireStationActor:
   sealed trait Command extends Message
 
   /**
-   * Command to signal that the fire station start managing an incident.
+   * Message to signal that the fire station start managing an incident.
    *
    * @param stationCode the code of the station managing the incident.
    */
   case class Managing(stationCode: String) extends Command
 
   /**
-   * Command to signal that an incident has been resolved.
+   * Message to signal that an incident has been resolved.
    *
    * @param stationCode the code of the station that resolved the incident.
    */
   case class Solved(stationCode: String) extends Command
 
   /**
-   * Command to find a zone based on its code.
+   * Message to find a zone based on its code.
    *
    * @param zoneCode the code of the zone to find.
    */
   case class FindZone(zoneCode: String) extends Command
 
   /**
-   * Command to request the status of a zone (the reques start from firestation).
+   * Message to request the status of a zone (the reques start from firestation).
    *
    * @param zoneRef the reference to the zone actor.
    */
   case class SendGetStatus(zoneRef: ActorRef[Message]) extends Command
 
   /**
-   * Command representing the status of a fire station.
+   * Message representing the status of a fire station.
    *
    * @param fireStationStatus the status of the fire station.
    */
   case class FireStationStatus(fireStationStatus: FireStation) extends Command
 
   /**
-   * Command used to inform the GUI that the fire station is not able to connect to its designated zone.
+   * Message used to inform the GUI that the fire station is not able to connect to its designated zone.
    *
    * @param fsCode the code of the fire station that could not connect.
    */
   case class ZoneNotFound(fsCode: String) extends Command
 
   /**
-   * Internal command to handle adapter messages for connection.
+   * Internal message to handle adapter messages for connection.
    *
    * @param listing the listing of actors from the receptionist.
    */

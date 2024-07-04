@@ -15,28 +15,28 @@ object PluviometerActor:
   sealed trait Command extends Message
 
   /**
-   * Internal command to find a zone based on its code.
+   * Internal message to find a zone based on its code.
    *
    * @param zoneCode the code of the zone to find.
    */
   private case class FindZone(zoneCode: String) extends Command
 
   /**
-   * Internal command to notify to send data to a zone.
+   * Internal message to notify to send data to a zone.
    *
    * @param zoneRef the reference to the zone actor to send data to.
    */
   private case class SendDataToZone(zoneRef: ActorRef[Message]) extends Command
 
   /**
-   * Internal command to handle adapter messages for connection.
+   * Internal message to handle adapter messages for connection.
    *
    * @param listing the listing of actors from the receptionist.
    */
   private case class AdapterMessageForConnection(listing: Receptionist.Listing) extends Command
 
   /**
-   * Command to try registering a pluviometer.
+   * Message to try registering a pluviometer.
    *
    * @param pluviometer     the pluviometer to register.
    * @param actorToRegister the reference to the actor to register.
@@ -44,7 +44,7 @@ object PluviometerActor:
   case class PluviometerTryRegister(pluviometer: Pluviometer, actorToRegister: ActorRef[Message]) extends Command
 
   /**
-   * Command representing the status of a pluviometer.
+   * Message representing the status of a pluviometer.
    *
    * @param pluviometer the pluviometer whose status is being reported.
    * @param pluvRef     the reference to the pluviometer actor.
@@ -52,14 +52,14 @@ object PluviometerActor:
   case class PluviometerStatus(pluviometer: Pluviometer, pluvRef: ActorRef[Message]) extends Command
 
   /**
-   * Command to make pluviometer enter in alarm state.
+   * Message to make pluviometer enter in alarm state.
    *
    * @param zoneRef the reference of the zone actor that notifies it.
    */
   case class Alarm(zoneRef: ActorRef[Message]) extends Command
 
   /**
-   * Command to make pluviometer exit from alarm state.
+   * Message to make pluviometer exit from alarm state.
    *
    * @param zoneRef the reference of the zone actor that notifies it.
    */

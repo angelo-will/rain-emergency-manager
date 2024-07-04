@@ -7,7 +7,7 @@ object ViewActor:
   sealed trait Command extends Message
 
   /**
-   * Internal command to check the if firestation are still communicating.
+   * Internal message to check the if firestation are still communicating.
    */
   private case class CheckFireStationConnection() extends Command
 
