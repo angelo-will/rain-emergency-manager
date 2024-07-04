@@ -1,18 +1,14 @@
 package actors.view
 
-import actors.firestastion.FireStationActor.{FireStationStatus, ZoneNotFound}
-import actors.view.ViewActor.CheckFireStationConnection
-import actors.view.ViewListenerActor.ActionCommand.{END_INTERVENTION, INTERVENE, WAITING}
 import akka.actor.typed.Behavior
 import actors.message.Message
-import systemelements.SystemElements.*
-import view.FireStationGUI
-
-import scala.concurrent.duration.FiniteDuration
 
 object ViewActor:
   sealed trait Command extends Message
 
+  /**
+   * Internal command to check the if firestation are still communicating.
+   */
   private case class CheckFireStationConnection() extends Command
 
   def apply(fsCode: String, allFSCodes: Seq[String], topicName: String): Behavior[Message] =
@@ -20,14 +16,20 @@ object ViewActor:
 
 case class ViewActor(fsCode: String, allFSCodes: Seq[String], topicName: String):
 
-  import actors.firestastion.FireStationActor
   import akka.actor.typed.pubsub.{PubSub, Topic}
   import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
   import akka.actor.typed.{ActorRef, Behavior}
-  import systemelements.SystemElements.FireStationState
+  import scala.concurrent.duration.FiniteDuration
+  import scala.collection.mutable
+
+  import systemelements.SystemElements.*
+  import view.FireStationGUI
   import view.FireStationGUI.{FireStationStateGUI, ZoneStateGUI}
 
-  import scala.collection.mutable
+  import actors.firestastion.FireStationActor
+  import actors.firestastion.FireStationActor.{FireStationStatus, ZoneNotFound}
+  import actors.view.ViewListenerActor.ActionCommand.{END_INTERVENTION, INTERVENE, WAITING}
+  import actors.view.ViewActor.CheckFireStationConnection
 
   private val gui = FireStationGUI(fsCode, allFSCodes)
   private val checkFSConnectionFrequency = FiniteDuration(20, "second")
