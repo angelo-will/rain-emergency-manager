@@ -36,7 +36,3 @@ object MemberEventBehavior:
           Behaviors.same
       }
     }
-
-
-
-

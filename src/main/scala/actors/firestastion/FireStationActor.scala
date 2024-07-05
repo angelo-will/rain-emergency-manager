@@ -176,6 +176,3 @@ private case class FireStationActor(fireStationCode: String, zoneCode: String, p
         connectToZone
       else
         Behaviors.same
-
-
-

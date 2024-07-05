@@ -17,7 +17,8 @@ def startup[X](file: String = "base-cluster", port: Int)(root: => Behavior[X]): 
 
 def startupWithRole[X](role: String, port: Int)(root: => Behavior[X]): ActorSystem[X] =
   val config = ConfigFactory
-    .parseString(s"""
+    .parseString(
+      s"""
       akka.remote.artery.canonical.port=$port
       akka.cluster.roles = [$role]
       """)

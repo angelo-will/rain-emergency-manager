@@ -13,5 +13,3 @@ object PrintInfo:
 //    ctx.log.info(s"Received context $ctx")
     ctx.log.info(s"$intro - Received context.self: ${ctx.self}")
     ctx.log.info(s"$intro - Received context.self.path: ${ctx.self.path}")
-
-

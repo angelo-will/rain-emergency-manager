@@ -87,12 +87,10 @@ case class FireStationGUI(fireStationCode: String, allFireStationsCode: Seq[Stri
   private val mainPanel = new FlowPanel() {
     contents += new Label("Stato delle caserma")
     for fsCode <- allFireStationsCode do
-      println("Add new FS panel")
       val fireSGui = FireStationStateComponent(fsCode)
       if fsCode.equals(fireStationCode) then fireSGui.setButton(true)
       fireStations(fsCode) = fireSGui
       contents += fireSGui
-      print(s"Add FS $fsCode: $fireSGui\nNow firestations is: $fireStations\n\n\n")
     this.revalidate()
     this.repaint()
   }
@@ -100,7 +98,6 @@ case class FireStationGUI(fireStationCode: String, allFireStationsCode: Seq[Stri
   def setButtonAction(listener: Action, fsCode: String): Unit =
     if fsCode.equals(fireStationCode) then
       val fsComponent = fireStations(fsCode)
-      println(s"Add listener to FSComponent ${fsComponent.fsCode}")
       fsComponent.setButtonAction(listener)
       fireStations(fsCode).setButton(true)
 

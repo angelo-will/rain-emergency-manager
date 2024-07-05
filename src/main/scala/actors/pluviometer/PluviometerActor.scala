@@ -6,7 +6,6 @@ import akka.actor.typed.{ActorRef, Behavior}
 import actors.message.Message
 import systemelements.SystemElements.Pluviometer
 
-
 object PluviometerActor:
 
   /**
@@ -190,13 +189,4 @@ private case class PluviometerActor(pluviometer: Pluviometer):
       else
         Behaviors.same
 
-
   private def info(ctx: ActorContext[Message])(msg: String) = ctx.log.info(msg)
-
-  private def printContextInfo(ctx: ActorContext[Message]) =
-    println(s"Received context $ctx")
-    println(s"Received context.self: ${ctx.self}")
-    println(s"Received context.self.path: ${ctx.self.path}")
-
-
-

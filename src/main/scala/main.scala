@@ -35,7 +35,6 @@ object Main extends App:
     x <- 0 until city.rows
     y <- 0 until city.columns
   yield
-    println(s"creating zone-$x-$y with index")
     Zone(
       s"zone-$x-$y",
       ZoneOk(),

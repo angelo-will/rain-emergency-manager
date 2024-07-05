@@ -1,6 +1,5 @@
 import actors.Deploy
-import akka.actor.typed.{ActorRef, ActorSystem, Behavior}
-import akka.actor.typed.pubsub.{PubSub, Topic}
+import akka.actor.typed.ActorSystem
 import akka.actor.typed.scaladsl.Behaviors
 import actors.message.Message
 import utils.startup
@@ -19,7 +18,7 @@ private val zoneCode4: String = "zone-4"
 private val topicName: String = "GUIChannel"
 
 /// seeds always up
-@main def deploySeeds():Unit = utils.seeds.foreach(port => startup(port = port)(Behaviors.empty))
+@main def deploySeeds(): Unit = utils.seeds.foreach(port => startup(port = port)(Behaviors.empty))
 
 /// for zone 01
 @main def singleDeployZone01(): Unit = simpleZoneStartup(9081, zoneCode1, 0, 0)
