@@ -1,15 +1,11 @@
 import actors.Deploy
-import akka.actor.typed.{ActorRef, Behavior}
-import akka.actor.typed.pubsub.{PubSub, Topic}
 import akka.actor.typed.scaladsl.Behaviors
 import actors.message.Message
 import utils.startup
-import actors.firestastion.FireStationActor.{FireStationStatus, Managing, Solved}
 import systemelements.SystemElements.*
 
 import scala.util.Random
 import actors.Deploy.*
-import actors.firestastion.FireStationActor
 
 import scala.collection.mutable.ArrayBuffer
 

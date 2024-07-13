@@ -38,7 +38,7 @@ object FireStationActor:
    *
    * @param zoneRef the reference to the zone actor.
    */
-  case class SendGetStatus(zoneRef: ActorRef[Message]) extends Command
+  private case class SendGetStatus(zoneRef: ActorRef[Message]) extends Command
 
   /**
    * Message representing the status of a fire station.
@@ -59,7 +59,7 @@ object FireStationActor:
    *
    * @param listing the listing of actors from the receptionist.
    */
-  private case class AdapterMessageForConnection(listing: Receptionist.Listing) extends Command
+  private case class ZoneFound(listing: Receptionist.Listing) extends Command
 
 
   def apply(name: String, fireStationCode: String, zoneCode: String, PubSubChannelName: String): Behavior[Message] =
@@ -74,12 +74,11 @@ private case class FireStationActor(fireStationCode: String, zoneCode: String, p
 
   import systemelements.SystemElements.{FireStationFree, FireStationBusy, FireStationState}
 
-  import FireStationActor.{Managing, Solved, FindZone, SendGetStatus, FireStationStatus, ZoneNotFound, AdapterMessageForConnection}
+  import FireStationActor.{Managing, Solved, FindZone, SendGetStatus, FireStationStatus, ZoneNotFound, ZoneFound}
 
   import actors.commonbehaviors.MemberEventBehavior
   import actors.zone.ZoneActor
   import actors.zone.ZoneActor.ZoneStatus
-
 
   private val searchingZoneFrequency = FiniteDuration(5, "second")
   private val askZoneStatus = FiniteDuration(1, "second")
@@ -87,11 +86,11 @@ private case class FireStationActor(fireStationCode: String, zoneCode: String, p
   private def starting: Behavior[Message] = Behaviors.setup { ctx =>
     ctx.spawn(MemberEventBehavior.memberExitBehavior(ctx), s"$fireStationCode-member-event")
     retrievePubSubTopic(ctx, pubSubChannelName) ! Topic.Subscribe(ctx.self)
-    connectToZone
+    findZone
   }
 
   //First thing to do is retrieve the zoneActor reference
-  private def connectToZone: Behavior[Message] =
+  private def findZone: Behavior[Message] =
 
     Behaviors.withTimers { timers =>
       val zoneServiceKey = ServiceKey[Message](zoneCode)
@@ -99,10 +98,10 @@ private case class FireStationActor(fireStationCode: String, zoneCode: String, p
       Behaviors.receivePartial {
         case (ctx, FindZone(zoneCode)) =>
           ctx.log.info(s"Timer tick, i'm trying to connect to zone $zoneCode")
-          ctx.system.receptionist ! Receptionist.Subscribe(zoneServiceKey, ctx.messageAdapter[Receptionist.Listing](AdapterMessageForConnection.apply))
+          ctx.system.receptionist ! Receptionist.Subscribe(zoneServiceKey, ctx.messageAdapter[Receptionist.Listing](ZoneFound.apply))
           retrievePubSubTopic(ctx, pubSubChannelName) ! Topic.publish(ZoneNotFound(fireStationCode))
           Behaviors.same
-        case (ctx, AdapterMessageForConnection(zoneServiceKey.Listing(l))) =>
+        case (ctx, ZoneFound(zoneServiceKey.Listing(l))) =>
           if (l.nonEmpty) {
             // found the zone, move to work
             ctx.log.info(s"Found $zoneCode, now start normal operations")
@@ -173,6 +172,6 @@ private case class FireStationActor(fireStationCode: String, zoneCode: String, p
       if zoneRef.path.address == address then
         timerScheduler.cancelAll()
         ctx.log.info(s"Zone disconnected, returning in connectToZone")
-        connectToZone
+        findZone
       else
         Behaviors.same
