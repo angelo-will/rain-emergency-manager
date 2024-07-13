@@ -1,62 +1,99 @@
-import akka.actor.typed.Behavior
-import akka.actor.typed.receptionist.{Receptionist, ServiceKey}
+import actors.Deploy
+import akka.actor.typed.{ActorRef, Behavior}
+import akka.actor.typed.pubsub.{PubSub, Topic}
 import akka.actor.typed.scaladsl.Behaviors
-import message.Message
-import utils.{seeds, startup}
-import zone.Zone
+import actors.message.Message
+import utils.startup
+import actors.firestastion.FireStationActor.{FireStationStatus, Managing, Solved}
+import systemelements.SystemElements.*
 
-object ZoneDeploy:
-  //  def apply(zoneServiceKey: ServiceKey[Zone.Command]): Behavior[Unit] =
-  def apply(zoneCode: String, zoneName: String): Behavior[Unit] =
-    val zoneServiceKey = ServiceKey[Message](zoneCode)
-    Behaviors.setup { ctx =>
-      val actorRef = ctx.spawn(Zone(zoneName), zoneServiceKey.id)
-      // ogni attore deve essere registrato al receptionist
-      ctx.system.receptionist ! Receptionist.Register(zoneServiceKey, actorRef)
-      ctx.log.info(s"${zoneServiceKey.id} register zone")
-      Behaviors.empty
-    }
+import scala.util.Random
+import actors.Deploy.*
+import actors.firestastion.FireStationActor
 
-object PluviometerDeploy:
+import scala.collection.mutable.ArrayBuffer
 
-  import pluviometer.Pluviometer
+private var fireStationCode1: String = "firestation-1"
+private var zoneCode1: String = "zone-1"
+private var zoneCode2: String = "zone-2"
+private var topicName: String = "GUIChannel"
 
-  //  def apply(zoneServiceKey: ServiceKey[Zone.Command]): Behavior[Unit] =
-  def apply(zoneCode: String, pluviometerName: String): Behavior[Message] =
-    Behaviors.setup { ctx =>
-      // Eventualmente si può provare a far autodeterminare il pluviometro a quale zona collegarsi
-      val actorRef = ctx.spawn(Pluviometer(pluviometerName, zoneCode), s"actor-$pluviometerName")
-      Behaviors.empty
-      
-      //      ctx.spawnAnonymous[Receptionist.Listing](
-      //        Behaviors.setup { ctx2 =>
-      //          ctx2.system.receptionist ! Receptionist.Subscribe(zoneServiceKey, ctx2.self)
-      //          Behaviors.receiveMessagePartial[Receptionist.Listing]{
-      //            case zoneServiceKey.Listing(l) =>
-      //              l.foreach(e =>
-      //                ctx2.log.info(s"Element listing: $e")
-      //                actorRef ! ConnectTo(e)
-      //              )
-      //              Behaviors.same
-      //          }
-      //          Behaviors.same
-      //          Behaviors.receiveMessagePartial[Receptionist.Listing] {
-      ////            case zoneServiceKe
-      ////            case msg if msg.allServiceInstances(zoneServiceKey).nonEmpty =>
-      ////              // devo dire al pluviometer a chi manderà i dati registrati
-      ////              ???
-      //          }
-      //          Behaviors.empty
-      //        })
-    }
+object Main extends App:
+
+  case class City(width: Double, height: Double, columns: Int, rows: Int)
+
+  val city = City(100, 200, 1, 2)
+
+  val maxPluviometersPerZone = 2
+  val pluvPerZone = 3
+
+  val maxWaterLevel = 200
+  var index = 0
+
+  // Create Zones
+  val zones = for
+    x <- 0 until city.rows
+    y <- 0 until city.columns
+  yield
+    Zone(
+      s"zone-$x-$y",
+      ZoneOk(),
+      pluviometers = Map(),
+      maxPluviometersPerZone,
+      maxWaterLevel,
+      row = x,
+      col = y,
+      (city.width / city.columns).toInt,
+      (city.height / city.rows).toInt
+    )
+
+  utils.seeds.foreach(port => startup(port = port)(Behaviors.empty))
+
+  // Deploy Zone
+  for
+    zone <- zones
+  yield
+    index += 1
+    startup(port = 10000 + index)(Deploy.zone(zone, s"actor-${zone.zoneCode}"))
+
+  // Deploy Pluviometers
+  index = 0
+  for
+    zone <- zones
+    pluv <- 0 to pluvPerZone
+  yield
+    index += 1
+    val coordX = Random.between(zone.width * zone.col, zone.width * (zone.col + 1)).toInt
+    val coordY = Random.between(zone.height * zone.row, zone.height * (zone.row + 1)).toInt
+    startup(port = 10100 + index)(Deploy.pluviometer(
+      Pluviometer(
+        pluvCode = s"pluviometer-$index",
+        zoneCode = zone.zoneCode,
+        Position(0, 0),
+        waterLevel = 0,
+        PluviometerNotAlarm()
+      ), s"actor-pluviometer-$index"))
+
+  val fsCodes = ArrayBuffer.empty[String]
+
+  // Deploy Firestations
+  index = 0
+  for
+    zone <- zones
+  yield
+    index += 1
+    val fsCode = s"firestation-$index"
+    fsCodes += fsCode
+    startup(port = 10200 + index)(Deploy.fireStation(zone.zoneCode, fsCode, topicName))
+
+  index = 0
+  for
+    fsCode <- fsCodes
+  yield
+    //Deploy view
+    index += 1
+    startup(port = 10300 + index)(Deploy.view(fsCode, fsCodes.toSeq, topicName))
+    startup(port = 10400 + index)(Deploy.view(fsCode, fsCodes.toSeq, topicName))
 
 
-@main def startZone01(): Unit =
-  startup(port = 2551)(ZoneDeploy("zone-01", "zone-01"))
-//  startup(port = seeds.head)(ZoneDeploy("zone-01", "zone-01"))
 
-@main def startZone02(): Unit =
-  startup(port = seeds.last)(ZoneDeploy("zone-02", "zone-02"))
-
-@main def deploySensor(): Unit =
-  val master = startup(port = 8080)(PluviometerDeploy("zone-01", "esp32-001"))

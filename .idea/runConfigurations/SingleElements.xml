@@ -1,0 +1,12 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="SingleElements" type="CompoundRunConfigurationType">
+    <toRun name="deployView" type="Application" />
+    <toRun name="singleDeployFireStation01" type="Application" />
+    <toRun name="singleDeploySensor01" type="Application" />
+    <toRun name="singleDeploySensor02" type="Application" />
+    <toRun name="singleDeploySensor03" type="Application" />
+    <toRun name="singleDeployZone01" type="Application" />
+    <toRun name="singleDeployZone02" type="Application" />
+    <method v="2" />
+  </configuration>
+</component>
